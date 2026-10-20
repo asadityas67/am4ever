@@ -1,0 +1,33 @@
+{
+  "id": "asrock-ab350m-pro4-p10.43",
+  "identity": {
+    "vendor": "ASRock",
+    "board": "AB350M Pro4",
+    "version": "P10.43",
+    "sha256": "1970ffd87cf68ec3b90504920f8ccda387bef39d02bd59acbaa1ac369e22ff0c"
+  },
+  "modules": [
+    { "name": "AmdCpmOemInitPeim",   "family": "ZP",  "index": 0 },
+    { "name": "AmdCpmOemInitPeim",   "family": "MTS", "index": 1 },
+    { "name": "AmdCpmOemRvInitPeim", "family": "RV",  "index": 0 },
+    { "name": "AmdCpmOemRnInitPeim", "family": "RN",  "index": 0 }
+  ],
+  "overrides": [
+    { "family": "ZP",  "offset": 726, "expected": "81ecc4000000" },
+    { "family": "MTS", "offset": 836, "expected": "8b018d94244cffffff" },
+    { "family": "RV",  "offset": 916, "expected": "81ecc0000000" },
+    { "family": "RN",  "offset": 876, "expected": "8b018d942460ffffff" }
+  ],
+  "volumes": {
+    "boot_blob_offset": 14688256,
+    "boot_blob_length": 874438,
+    "boot_fv_offset": 32,
+    "dxe_fv_offset": 9760768,
+    "compression": "amd-zlib",
+    "dxe_file_guid": "9e21fd93-9c72-4c15-8c4b-e77f1db2d792"
+  },
+  "hazards": [
+    "NCT6791D Super I/O at 0x2E and NCT3933 at SMBus 0x15 checked harmless"
+  ],
+  "download_url": "https://www.asrock.com/mb/AMD/AB350M%20Pro4/"
+}
