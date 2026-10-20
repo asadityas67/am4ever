@@ -24,6 +24,13 @@ public class DxioTableTests
         Assert.Contains("lanes 1-1", dx.Describe(4));
     }
 
+    [Fact] public void Set_IndexOutOfRange_Throws()
+    {
+        var (img, t) = SyntheticCpm.OneDxioTable(descriptors: 6, descSize: 0x1A4);
+        var dx = new DxioTable(img, t, 0x1A4);
+        Assert.Throws<Am4ever.Core.Rom.RomEditException>(() => dx.Set(99, engine: 1));
+    }
+
     [Fact] public void DdiCopy_PadsToDestinationLength()
     {
         var (dstImg, dst) = SyntheticCpm.OneDxioTable(descriptors: 16, descSize: 0x1A4, ddiBytes: 0x60);

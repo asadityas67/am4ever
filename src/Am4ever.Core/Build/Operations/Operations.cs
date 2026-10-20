@@ -15,6 +15,7 @@ public sealed class NeutraliseOverrideOp(OperationSpec spec) : BoardOperation(sp
         if (Spec.Offset is null || Spec.Expected is null)
             throw new RomFormatException("neutralise_override needs an offset and expected bytes");
         var img = ctx.DonorPeim(Spec.Family);
+        OpGuard.RequireRange(img, Spec.Offset.Value, Spec.Expected.Length, "neutralise_override");
         if (!img.AsSpan(Spec.Offset.Value, Spec.Expected.Length).SequenceEqual(Spec.Expected))
             throw new RomEditException($"neutralise_override at 0x{Spec.Offset:X}: expected bytes not found");
     }
@@ -28,7 +29,8 @@ public sealed class NeutraliseOverrideOp(OperationSpec spec) : BoardOperation(sp
     public override bool Verify(BuildContext ctx, out string message)
     {
         var img = ctx.DonorPeim(Spec.Family);
-        bool ok = img.AsSpan(Spec.Offset!.Value, 3).SequenceEqual(new byte[] { 0x31, 0xC0, 0xC3 });
+        int o = Spec.Offset!.Value;
+        bool ok = o >= 0 && o + 3 <= img.Length && img.AsSpan(o, 3).SequenceEqual(new byte[] { 0x31, 0xC0, 0xC3 });
         message = ok ? "" : $"override at 0x{Spec.Offset:X} was not neutralised";
         return ok;
     }
@@ -42,6 +44,7 @@ public sealed class BytePatchOp(OperationSpec spec) : BoardOperation(spec)
         if (Spec.Offset is null || Spec.Expected is null || Spec.New is null)
             throw new RomFormatException("byte_patch needs offset, expected and new bytes");
         var img = ctx.DonorPeim(Spec.Family);
+        OpGuard.RequireRange(img, Spec.Offset.Value, Spec.Expected.Length, "byte_patch");
         if (!img.AsSpan(Spec.Offset.Value, Spec.Expected.Length).SequenceEqual(Spec.Expected))
             throw new RomEditException($"byte_patch at 0x{Spec.Offset:X}: expected bytes not found");
     }
@@ -138,6 +141,8 @@ public sealed class DxioLayoutOp(OperationSpec spec) : BoardOperation(spec)
         var t = CpmImage.FindTable(donor, "$A26", Spec.PlatformMask);
         var dx = new DxioTable(donor, t, Spec.DescriptorSize ?? 0x1A4);
         var lines = new List<string> { $"$A26 @0x{t.Offset:X} pmask=0x{Spec.PlatformMask:X}" };
+        if (Spec.Confidence is not null || Spec.Evidence is not null)
+            lines.Add($"  [{Spec.Confidence ?? "verified"}] {Spec.Evidence}");
         foreach (var e in Spec.Dxio ?? Array.Empty<DxioEdit>())
         {
             var before = dx.Describe(e.Desc);
@@ -165,7 +170,8 @@ public sealed class DdiLayoutOp(OperationSpec spec) : BoardOperation(spec)
         var hp = ctx.HpPeim(Spec.Family);
         var ht = CpmImage.FindTable(hp, "$A26", Spec.DdiFromPlatformMask);
         DdiBlock.Copy(donor, dt, hp, ht, Spec.DescriptorSize ?? 0x1A4, 0x94);   // OEM is PinnaclePI (0x94)
-        return new[] { $"$A26 pmask=0x{Spec.PlatformMask:X} displays: copied OEM block" };
+        var evidence = Spec.Evidence is null ? "" : $" [{Spec.Confidence ?? "verified"}] {Spec.Evidence}";
+        return new[] { $"$A26 pmask=0x{Spec.PlatformMask:X} displays: copied OEM block{evidence}" };
     }
 }
 
@@ -216,6 +222,16 @@ public sealed class ApcbCheckOp(OperationSpec spec) : BoardOperation(spec)
     {
         Apcb.SpdMapsCompatible(ctx.OemRom!, ctx.OemApcb, ctx.DonorRom!, ctx.DonorApcb, out var report);
         return new[] { $"APCB check: {report}" };
+    }
+}
+
+/// <summary>Shared operation guards.</summary>
+static class OpGuard
+{
+    public static void RequireRange(byte[] img, int offset, int length, string op)
+    {
+        if (offset < 0 || length < 0 || (long)offset + length > img.Length)
+            throw new RomEditException($"{op} at 0x{offset:X}: {length} byte(s) fall outside the {img.Length}-byte module");
     }
 }
 

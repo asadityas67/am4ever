@@ -63,7 +63,9 @@ public static class SmbiosTable
                 lines.Add($"type {type}: identity fields rewritten");
                 if (type == 1 && dmi.SystemUuid is not null)
                 {
-                    Guid.Parse(dmi.SystemUuid).ToByteArray().CopyTo(fmt, 8);   // 16 bytes, SMBIOS 2.6+ order
+                    if (!Guid.TryParse(dmi.SystemUuid, out var uuid))
+                        throw new RomFormatException($"system UUID '{dmi.SystemUuid}' is not a valid UUID");
+                    uuid.ToByteArray().CopyTo(fmt, 8);                        // 16 bytes, SMBIOS 2.6+ order
                     lines.Add($"type 1 UUID -> {dmi.SystemUuid}");
                 }
                 if (type == 3 && dmi.ChassisType is not null)

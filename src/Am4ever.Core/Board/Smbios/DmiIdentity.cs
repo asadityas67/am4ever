@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using System.Text.Json;
+using Am4ever.Core.Rom;
 
 namespace Am4ever.Core.Board.Smbios;
 
@@ -70,8 +71,16 @@ public sealed record DmiIdentity
 
     public static DmiIdentity FromJson(byte[] utf8)
     {
-        var dto = JsonSerializer.Deserialize<Dto>(utf8, Options)
-                  ?? throw new ArgumentException("empty DMI JSON");
+        Dto dto;
+        try
+        {
+            dto = JsonSerializer.Deserialize<Dto>(utf8, Options)
+                  ?? throw new RomFormatException("empty DMI JSON document");
+        }
+        catch (JsonException e)
+        {
+            throw new RomFormatException($"invalid DMI JSON: {e.Message}");
+        }
         return new DmiIdentity
         {
             SystemManufacturer = dto.SystemManufacturer,

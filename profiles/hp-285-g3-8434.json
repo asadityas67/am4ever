@@ -50,7 +50,9 @@
       { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
       { "tag": "$A14", "term": "ff" }, { "tag": "$A15", "term": "ff" },
       { "tag": "$A17", "term": "ff" }, { "tag": "$A19", "term": "ff000000" } ] },
-    { "op": "dxio_layout", "family": "MTS", "platform_mask": 0, "dxio": [
+    { "op": "dxio_layout", "family": "MTS", "platform_mask": 0,
+      "confidence": "inferred", "evidence": "Matisse/Vermeer GPP numbering is mirrored vs Pinnacle; HP lanes 0/1/2-3 map to 7/6/4-5",
+      "dxio": [
       { "desc": 0, "lanes": [16, 31] },
       { "desc": 1, "engine": 0 },
       { "desc": 2, "lanes": [7, 7], "clk_req": 1 },
@@ -69,7 +71,9 @@
       { "desc": 1, "lanes": [0, 0], "clk_req": 1 },
       { "desc": 4, "template": 1, "engine": 1, "lanes": [1, 1], "device": 1, "function": 5, "clk_req": 2 },
       { "desc": 3, "engine": 3 } ] },
-    { "op": "dxio_layout", "family": "RV", "platform_mask": 2130706432, "dxio": [
+    { "op": "dxio_layout", "family": "RV", "platform_mask": 2130706432,
+      "confidence": "inferred", "evidence": "Raven2/Athlon routes the x4 GFX link on lanes 12-15",
+      "dxio": [
       { "desc": 0, "lanes": [12, 15] },
       { "desc": 1, "lanes": [0, 0], "clk_req": 1 },
       { "desc": 4, "template": 1, "engine": 1, "lanes": [1, 1], "device": 1, "function": 5, "clk_req": 2 },

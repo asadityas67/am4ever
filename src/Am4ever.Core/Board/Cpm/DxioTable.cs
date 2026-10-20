@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using System.Buffers.Binary;
+using Am4ever.Core.Rom;
 
 namespace Am4ever.Core.Board.Cpm;
 
@@ -27,7 +28,12 @@ public sealed class DxioTable
 
     public int Count { get; }
 
-    int Off(int i) => _tableOffset + DescriptorBase + i * _descSize;
+    int Off(int i)
+    {
+        if (i < 0 || i >= Count)
+            throw new RomEditException($"DXIO descriptor {i} is out of range (table has {Count} descriptors)");
+        return _tableOffset + DescriptorBase + i * _descSize;
+    }
 
     public string Describe(int i)
     {
