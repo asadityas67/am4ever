@@ -17,4 +17,6 @@ public sealed record ModuleEntry(string Name, string Family, int Index);
 
 public sealed record OverrideSig(string Family, int Offset, byte[] Expected);
 
-public sealed record VolumeMap(int BootBlobOffset, int BootBlobLength, int BootFvOffset, int DxeFvOffset, string? Compression);
+public sealed record VolumeMap(
+    int BootBlobOffset, int BootBlobLength, int BootFvOffset, int DxeFvOffset,
+    string? Compression = null, string? DxeFileGuid = null);

@@ -7,7 +7,8 @@ namespace Am4ever.Core.Profile;
 /// <summary>A board profile (schema <c>am4ever.profile/1</c>): what to build, from which donor, and how.</summary>
 public sealed record BoardProfile(
     string Schema, BoardInfo Board, DonorRef Donor, IReadOnlyList<string> Authors,
-    ProfileStatus Status, IReadOnlyList<OperationSpec> Operations, IdentitySpec? Identity);
+    ProfileStatus Status, IReadOnlyList<OperationSpec> Operations, IdentitySpec? Identity,
+    IReadOnlyList<ModuleEntry>? OemModules = null, int? OemPeiFvOffset = null);
 
 public sealed record BoardInfo(string Vendor, string Model, string BoardId, BoardMatch Match);
 
