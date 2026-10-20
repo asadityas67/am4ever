@@ -33,13 +33,29 @@ public sealed record OperationSpec(string Op)
     public string? From { get; init; }
     public string? Merge { get; init; }
     public uint? PlatformMask { get; init; }
+    public uint? HpPlatformMask { get; init; }
+    public string? BaseFamily { get; init; }
+    public uint? BasePlatformMask { get; init; }
     public string? Module { get; init; }
     public int? Offset { get; init; }
     public byte[]? Expected { get; init; }
     public byte[]? New { get; init; }
+    public int? DescriptorSize { get; init; }
+    public IReadOnlyList<DxioEdit>? Dxio { get; init; }
+    public IReadOnlyList<EmptyTableSpec>? Tables { get; init; }
+    public uint? DdiFromPlatformMask { get; init; }
+    public bool? DdiKeep { get; init; }
+    public IReadOnlyList<uint>? OldCodecs { get; init; }
+    public uint? NewCodec { get; init; }
     public string? Confidence { get; init; }
     public string? Evidence { get; init; }
     public string? Notes { get; init; }
 
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; init; }
 }
+
+/// <summary>One descriptor edit in a <c>dxio_layout</c> operation (mirrors the Python <c>Dxio.set</c> kwargs).</summary>
+public sealed record DxioEdit(int Desc, int? Template, byte? Engine, int[]? Lanes, byte? Device, byte? Function, byte? ClkReq);
+
+/// <summary>A table to empty in an <c>empty_tables</c> operation: its tag and the terminator bytes (hex).</summary>
+public sealed record EmptyTableSpec(string Tag, byte[] Term);
