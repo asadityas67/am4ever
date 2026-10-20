@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>am4ever</AssemblyName>
+    <RootNamespace>Am4ever.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Am4ever.Core\Am4ever.Core.csproj" />
+  </ItemGroup>
+</Project>
