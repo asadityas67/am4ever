@@ -1,3 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Placeholder entry point; replaced in milestone 1 task 6.
-return 0;
+using Avalonia;
+
+namespace Am4ever.App;
+
+static class Program
+{
+    [STAThread]
+    public static int Main(string[] args) => BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
+    public static AppBuilder BuildAvaloniaApp() =>
+        AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
+}
