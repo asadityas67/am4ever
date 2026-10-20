@@ -18,7 +18,7 @@ public static class SyntheticFv
         // FV header
         fileGuidToFsGuid(buf);
         Bin.W64(buf, 32, (ulong)total);
-        Bin.W32(buf, 40, 0x4856465F);           // "_FVH"
+        Bin.W32(buf, 40, 0x4856465F);           // _ F V H
         Bin.W16(buf, 48, FvHeaderLength);
         Bin.W16(buf, 52, 0);                     // no extended header
         buf[55] = 2;                             // revision

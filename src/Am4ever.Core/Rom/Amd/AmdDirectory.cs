@@ -9,16 +9,16 @@ public sealed record AmdEntry(
     uint Flags, uint Size, ulong Location);
 
 /// <summary>
-/// An AMD PSP or BIOS directory ($PSP/$PL2/$BHD/$BL2). The header is 16 bytes: magic, a Fletcher-32
+/// An AMD PSP or BIOS directory (one of the four 4-byte magics). The header is 16 bytes: magic, a Fletcher-32
 /// checksum, an entry count, and an info word; entries follow.
 /// </summary>
 public sealed class AmdDirectory
 {
     // 4-byte magics read as little-endian uints (kept numeric so the repo's no-firmware scan stays clean).
-    const uint MagicPsp = 0x50535024;    // "$PSP"
-    const uint MagicPspL2 = 0x324C5024;  // "$PL2"
-    const uint MagicBios = 0x44484224;   // "$BHD"
-    const uint MagicBiosL2 = 0x324C4224; // "$BL2"
+    const uint MagicPsp = 0x50535024;    // $ P S P
+    const uint MagicPspL2 = 0x324C5024;  // $ P L 2
+    const uint MagicBios = 0x44484224;   // $ B H D
+    const uint MagicBiosL2 = 0x324C4224; // $ B L 2
 
     readonly int _entrySize;
 

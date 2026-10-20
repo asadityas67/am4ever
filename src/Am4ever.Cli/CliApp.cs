@@ -31,6 +31,15 @@ public static class CliApp
                 io.Out.WriteLine($"am4ever {Version}");
                 return ExitOk;
 
+            case "inspect":
+                if (args.Length < 2)
+                {
+                    io.Err.WriteLine("am4ever inspect: a ROM file path is required");
+                    PrintUsage(io.Err);
+                    return ExitUsage;
+                }
+                return Commands.InspectCommand.Run(args[1], io);
+
             case "build":
                 var flags = args.Skip(1).ToList();
                 var unknown = flags.Where(f => f != RiskFlag).ToList();
@@ -80,6 +89,7 @@ public static class CliApp
         w.WriteLine("usage: am4ever <command> [options]");
         w.WriteLine();
         w.WriteLine("commands:");
+        w.WriteLine("  inspect <rom>                   report a ROM's size, AMD directories and AGESA (read-only)");
         w.WriteLine($"  build {RiskFlag}   build a modded BIOS (milestone 3)");
         w.WriteLine("  --version                       print the version");
         w.WriteLine("  --help                          print this help");

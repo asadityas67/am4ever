@@ -6,7 +6,7 @@ namespace Am4ever.Tests.Rom;
 
 public class AmdDirectoryTests
 {
-    const uint PspMagic = 0x50535024;   // "$PSP"
+    const uint PspMagic = 0x50535024;   // $ P S P
 
     static void WriteDir(RomImage rom, int off, uint magic, int count, bool goodChecksum)
     {

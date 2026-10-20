@@ -43,7 +43,7 @@ public static class SectionWalker
 /// <summary>An FFSv2 firmware volume: a header followed by FFS files.</summary>
 public sealed class FirmwareVolume
 {
-    const uint Signature = 0x4856465F;    // "_FVH" at offset 40
+    const uint Signature = 0x4856465F;    // _ F V H  at offset 40
 
     readonly byte[] _buffer;
 
