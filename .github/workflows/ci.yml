@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Test (includes the no-firmware and licence-header checks)
+        run: dotnet test --nologo
+      - name: Publish (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Rid ${{ matrix.rid }}
+      - name: Publish (Linux)
+        if: runner.os == 'Linux'
+        run: ./scripts/publish.sh ${{ matrix.rid }}
+      - name: Smoke-run the CLI (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          ./publish/am4ever-linux-x64/am4ever --version 2> stderr.txt
+          grep -F "WARNING: You are responsible for what you do." stderr.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: am4ever-${{ matrix.rid }}
+          path: publish/am4ever-${{ matrix.rid }}

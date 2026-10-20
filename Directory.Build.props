@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DebugType>embedded</DebugType>
     <Version>0.1.0</Version>
     <Authors>am4ever contributors</Authors>
     <PackageLicenseExpression>GPL-2.0-or-later</PackageLicenseExpression>

@@ -4,6 +4,6 @@
              RequestedThemeVariant="Default">
   <Application.Styles>
     <SimpleTheme />
-    <StyleInclude Source="avares://Am4ever.App/Theme/WinFormsTheme.axaml" />
+    <StyleInclude Source="/Theme/WinFormsTheme.axaml" />
   </Application.Styles>
 </Application>
