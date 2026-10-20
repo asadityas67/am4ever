@@ -55,4 +55,15 @@ public static class SyntheticCpm
         var img = WithTables(("$A10", 0u, size));
         return (img, CpmImage.FindTable(img, "$A10"));
     }
+
+    /// <summary>
+    /// A single $A26 DXIO table: 0x14 header+SocketId, then <paramref name="descriptors"/> descriptors
+    /// of <paramref name="descSize"/> bytes, then a DDI display block of <paramref name="ddiBytes"/> bytes.
+    /// </summary>
+    public static (byte[] Img, CpmTable Table) OneDxioTable(int descriptors, int descSize, int ddiBytes = 0)
+    {
+        int size = 0x14 + descriptors * descSize + ddiBytes;
+        var img = WithTables(("$A26", 0u, size));
+        return (img, CpmImage.FindTable(img, "$A26"));
+    }
 }
