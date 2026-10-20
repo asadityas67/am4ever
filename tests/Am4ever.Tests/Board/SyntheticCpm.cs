@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+using Am4ever.Core.Board.Cpm;
 using Am4ever.Core.Rom;
 
 namespace Am4ever.Tests.Board;
@@ -46,5 +47,12 @@ public static class SyntheticCpm
                 && img[o + 2] == (byte)tag[2] && img[o + 3] == (byte)tag[3])
                 return o;
         throw new InvalidOperationException($"tag {tag} not found in synthetic image");
+    }
+
+    /// <summary>A single $A10 GPIO table of the given total size, with an empty body.</summary>
+    public static (byte[] Img, CpmTable Table) OneGpioTable(int size)
+    {
+        var img = WithTables(("$A10", 0u, size));
+        return (img, CpmImage.FindTable(img, "$A10"));
     }
 }
