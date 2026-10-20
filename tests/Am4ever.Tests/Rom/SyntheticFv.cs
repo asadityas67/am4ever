@@ -53,7 +53,11 @@ public static class SyntheticFv
     public static byte[] WithFreeSpace(int freeBytes, out Guid fileGuid)
     {
         fileGuid = Guid.NewGuid();
-        return Build(0x8000 + freeBytes, fileGuid, new byte[] { 1, 2, 3, 4 });
+        var body = new byte[] { 1, 2, 3, 4 };
+        // first-file offset, aligned; its file end, aligned; then exactly freeBytes of 0xFF.
+        int first = (FvHeaderLength + 7) & ~7;
+        int fileEnd = first + (((24 + body.Length) + 7) & ~7);
+        return Build(fileEnd + freeBytes, fileGuid, body);
     }
 
     public static void CorruptFirstFileSizeToZero(byte[] buf)
