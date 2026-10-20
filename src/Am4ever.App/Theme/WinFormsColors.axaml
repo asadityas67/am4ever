@@ -1,0 +1,29 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Classic WinForms system colours, light and dark (design §4). -->
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="am4.Control" Color="#F0F0F0" />
+      <SolidColorBrush x:Key="am4.ControlText" Color="#000000" />
+      <SolidColorBrush x:Key="am4.Window" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="am4.ControlLightLight" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="am4.ControlDark" Color="#A0A0A0" />
+      <SolidColorBrush x:Key="am4.ControlDarkDark" Color="#696969" />
+      <SolidColorBrush x:Key="am4.Highlight" Color="#0078D7" />
+      <SolidColorBrush x:Key="am4.HighlightText" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="am4.GrayText" Color="#6D6D6D" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="am4.Control" Color="#2D2D30" />
+      <SolidColorBrush x:Key="am4.ControlText" Color="#F1F1F1" />
+      <SolidColorBrush x:Key="am4.Window" Color="#1E1E1E" />
+      <SolidColorBrush x:Key="am4.ControlLightLight" Color="#4A4A4F" />
+      <SolidColorBrush x:Key="am4.ControlDark" Color="#1A1A1C" />
+      <SolidColorBrush x:Key="am4.ControlDarkDark" Color="#000000" />
+      <SolidColorBrush x:Key="am4.Highlight" Color="#0A64AD" />
+      <SolidColorBrush x:Key="am4.HighlightText" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="am4.GrayText" Color="#9A9A9A" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+  <FontFamily x:Key="am4.Font">Segoe UI, Ubuntu, DejaVu Sans, sans-serif</FontFamily>
+</ResourceDictionary>
