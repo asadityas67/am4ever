@@ -2,4 +2,7 @@
   <PropertyGroup>
     <RootNamespace>Am4ever.Core</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="lzma-sdk" Version="22.1.1" />
+  </ItemGroup>
 </Project>

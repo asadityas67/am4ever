@@ -305,7 +305,7 @@ public class FvEditorTests
 
 **Files:**
 - Create: `src/Am4ever.Core/Rom/Compression/EdkLzma.cs`, `src/Am4ever.Core/Rom/Fv/GuidedSection.cs`
-- Modify: `src/Am4ever.Core/Am4ever.Core.csproj` (add SharpCompress 0.38.0)
+- Modify: `src/Am4ever.Core/Am4ever.Core.csproj` (add lzma-sdk 22.1.1)
 - Test: `tests/Am4ever.Tests/Rom/EdkLzmaTests.cs`
 
 **Interfaces:**
@@ -354,7 +354,7 @@ public class EdkLzmaTests
 ```
 
 - [ ] **Step 2:** Run → FAIL.
-- [ ] **Step 3:** Add SharpCompress 0.38.0 and implement. The ASRock DXE container (file GUID `9e21fd93-…`, LZMA section GUID `ee4e5898-…` at `0x94F000`) decodes to about 9 MiB (reference value). Re-encoded bytes need not match the original exactly (§11: the check is semantic).
+- [ ] **Step 3:** Add lzma-sdk 22.1.1 and implement. The ASRock DXE container (file GUID `9e21fd93-…`, LZMA section GUID `ee4e5898-…` at `0x94F000`) decodes to about 9 MiB (reference value). Re-encoded bytes need not match the original exactly (§11: the check is semantic).
 - [ ] **Step 4:** Run with/without the env var.
 - [ ] **Step 5:** Commit: `feat(core): EDK LZMA codec and guided-section replace`.
 
