@@ -20,7 +20,7 @@
   ],
   "volumes": {
     "boot_blob_offset": 14688256,
-    "boot_blob_length": 873926,
+    "boot_blob_length": 874438,
     "boot_fv_offset": 32,
     "dxe_fv_offset": 9760768,
     "compression": "amd-zlib",

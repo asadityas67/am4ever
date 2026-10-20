@@ -36,7 +36,7 @@
       { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
       { "tag": "$A14", "term": "ff" }, { "tag": "$A15", "term": "ff" },
       { "tag": "$A17", "term": "ff" }, { "tag": "$A19", "term": "ff000000" } ] },
-    { "op": "dxio_layout", "family": "ZP", "platform_mask": 12565248, "dxio": [
+    { "op": "dxio_layout", "family": "ZP", "platform_mask": 12566272, "dxio": [
       { "desc": 2, "lanes": [0, 0], "clk_req": 1 },
       { "desc": 4, "template": 2, "engine": 1, "lanes": [1, 1], "device": 1, "function": 2, "clk_req": 2 },
       { "desc": 3, "engine": 3 } ] },
@@ -59,7 +59,7 @@
     { "op": "verb_table", "family": "MTS", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
 
     { "op": "neutralise_override", "family": "RV", "offset": 916, "expected": "81ecc0000000" },
-    { "op": "port_gpio", "family": "RV", "platform_mask": 2142633984, "hp_platform_mask": 2142633984 },
+    { "op": "port_gpio", "family": "RV", "platform_mask": 2143223808, "hp_platform_mask": 2143223808 },
     { "op": "port_gevent", "family": "RV" },
     { "op": "empty_tables", "family": "RV", "tables": [
       { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
@@ -81,8 +81,8 @@
     { "op": "verb_table", "family": "RV", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
 
     { "op": "neutralise_override", "family": "RN", "offset": 876, "expected": "8b018d942460ffffff" },
-    { "op": "port_gpio", "family": "RN", "platform_mask": 0, "hp_platform_mask": 2142633984,
-      "merge": "family_delta", "base_family": "RV", "base_platform_mask": 2142633984 },
+    { "op": "port_gpio", "family": "RN", "platform_mask": 0, "hp_platform_mask": 2143223808,
+      "merge": "family_delta", "base_family": "RV", "base_platform_mask": 2143223808 },
     { "op": "port_gevent", "family": "RN" },
     { "op": "empty_tables", "family": "RN", "tables": [
       { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
@@ -94,7 +94,9 @@
       { "desc": 4, "engine": 3 } ] },
     { "op": "ddi_layout", "family": "RN", "platform_mask": 0, "ddi_keep": true,
       "confidence": "inferred", "evidence": "HP Raven display block == ASRock Raven block, so same physical wiring" },
-    { "op": "verb_table", "family": "RN", "old_codecs": [283904153, 283904152], "new_codec": 283903601 }
+    { "op": "verb_table", "family": "RN", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
+
+    { "op": "smbios_identity", "notes": "generic HP identity, or per-machine data when the user supplies --dmi" }
   ],
   "identity": { "extractor": "hp-8434" }
 }
