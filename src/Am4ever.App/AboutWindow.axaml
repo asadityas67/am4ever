@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Am4ever.App.AboutWindow"
+        Title="About am4ever"
+        Width="420" Height="230"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="12">
+    <Button x:Name="OkButton" DockPanel.Dock="Bottom" Content="OK" MinWidth="88"
+            HorizontalAlignment="Right" IsDefault="True" IsCancel="True" />
+    <StackPanel Spacing="6">
+      <TextBlock Text="am4ever" FontSize="16" FontWeight="Bold" />
+      <TextBlock x:Name="VersionText" />
+      <TextBlock Text="Licence: GPL-2.0-or-later. No warranty." />
+      <TextBlock x:Name="AffiliationText" TextWrapping="Wrap" />
+    </StackPanel>
+  </DockPanel>
+</Window>

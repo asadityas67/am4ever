@@ -1,0 +1,133 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Classic WinForms look over SimpleTheme (design §4). Colours come from WinFormsColors.axaml. -->
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Theme/WinFormsColors.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource am4.Control}" />
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+    <Setter Property="FontFamily" Value="{DynamicResource am4.Font}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <!-- Button: raised 3D edge, swapped while pressed. -->
+  <Style Selector="Button">
+    <Setter Property="Background" Value="{DynamicResource am4.Control}" />
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+    <Setter Property="Padding" Value="10,3" />
+    <Setter Property="MinHeight" Value="23" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="outer" BorderThickness="0,0,1,1" BorderBrush="{DynamicResource am4.ControlDarkDark}">
+          <Border Name="inner" BorderThickness="1,1,0,0" BorderBrush="{DynamicResource am4.ControlLightLight}"
+                  Background="{TemplateBinding Background}">
+            <Border Name="shade" BorderThickness="0,0,1,1" BorderBrush="{DynamicResource am4.ControlDark}">
+              <ContentPresenter Name="PART_ContentPresenter"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Padding="{TemplateBinding Padding}"
+                                Foreground="{TemplateBinding Foreground}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Border>
+          </Border>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button:pressed /template/ Border#outer">
+    <Setter Property="BorderBrush" Value="{DynamicResource am4.ControlLightLight}" />
+  </Style>
+  <Style Selector="Button:pressed /template/ Border#inner">
+    <Setter Property="BorderBrush" Value="{DynamicResource am4.ControlDarkDark}" />
+  </Style>
+  <Style Selector="Button:pressed /template/ Border#shade">
+    <Setter Property="BorderThickness" Value="1,1,0,0" />
+  </Style>
+  <Style Selector="Button:disabled">
+    <Setter Property="Foreground" Value="{DynamicResource am4.GrayText}" />
+  </Style>
+  <Style Selector="Button:focus-visible /template/ Border#shade">
+    <Setter Property="BorderBrush" Value="{DynamicResource am4.Highlight}" />
+  </Style>
+
+  <!-- TextBox: sunken white field. -->
+  <Style Selector="TextBox">
+    <Setter Property="Background" Value="{DynamicResource am4.Window}" />
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource am4.ControlDark}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="3,2" />
+  </Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+  </Style>
+  <Style Selector="CheckBox:disabled">
+    <Setter Property="Foreground" Value="{DynamicResource am4.GrayText}" />
+  </Style>
+
+  <!-- Group box: etched frame with the title sitting on it. -->
+  <Style Selector="HeaderedContentControl.groupbox">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Grid.RowSpan="2" Margin="0,7,0,0"
+                  BorderBrush="{DynamicResource am4.ControlDark}" BorderThickness="1">
+            <Border BorderBrush="{DynamicResource am4.ControlLightLight}" BorderThickness="1,1,0,0" Padding="8,12,8,8">
+              <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
+            </Border>
+          </Border>
+          <ContentPresenter Grid.Row="0" Margin="8,0,0,0" Padding="3,0" HorizontalAlignment="Left"
+                            Background="{DynamicResource am4.Control}"
+                            Content="{TemplateBinding Header}" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="TabControl">
+    <Setter Property="Background" Value="{DynamicResource am4.Control}" />
+  </Style>
+  <Style Selector="TabItem">
+    <Setter Property="Background" Value="{DynamicResource am4.Control}" />
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource am4.ControlDark}" />
+    <Setter Property="BorderThickness" Value="1,1,1,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+  <Style Selector="TabItem:selected">
+    <Setter Property="Background" Value="{DynamicResource am4.Window}" />
+  </Style>
+
+  <Style Selector="Menu">
+    <Setter Property="Background" Value="{DynamicResource am4.Control}" />
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="Foreground" Value="{DynamicResource am4.ControlText}" />
+  </Style>
+  <Style Selector="MenuItem:pointerover /template/ Border#root">
+    <Setter Property="Background" Value="{DynamicResource am4.Highlight}" />
+  </Style>
+  <Style Selector="MenuItem:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource am4.HighlightText}" />
+  </Style>
+
+  <!-- Status bar: a Border with class "statusbar". -->
+  <Style Selector="Border.statusbar">
+    <Setter Property="Background" Value="{DynamicResource am4.Control}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource am4.ControlDark}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="Padding" Value="6,2" />
+  </Style>
+</Styles>
