@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+using System.Security.Cryptography;
+using Am4ever.Core.Board;
+using Am4ever.Core.Board.Cpm;
+using Am4ever.Core.Board.Smbios;
+using Am4ever.Core.Profile;
+using Am4ever.Core.Rom;
+using Am4ever.Core.Rom.Compression;
+using Am4ever.Core.Rom.Fv;
+
+namespace Am4ever.Core.Build;
+
+/// <summary>
+/// Runs a board profile against the user's own OEM dump and a donor ROM, producing a modded image.
+/// Mirrors <c>build_hp285g3.py</c>: decompress the donor PEI volume, run the per-family CPM/verb
+/// operations, recompress, apply the SMBIOS identity in the DXE volume, and verify. Inputs are never
+/// mutated. The EC-fan DXE driver (<c>add_ec_init</c>) is Milestone 4; an M3 image omits it.
+/// </summary>
+public static class BuildPipeline
+{
+    const int BootWrapperSize = 0x30;         // FFS header (0x18) + GUID-defined section header (0x18)
+    static readonly Guid SmbiosFileGuid = Guid.Parse("daf4bf89-ce71-4917-b522-c89d32fbc59f");
+
+    static readonly string[] PeiOps =
+        { "neutralise_override", "byte_patch", "port_gpio", "port_gevent", "empty_tables", "dxio_layout", "ddi_layout", "verb_table" };
+
+    public static BuildResult Build(byte[] donorRom, byte[] oemRom, BoardProfile profile, DonorAdapter adapter, DmiIdentity? dmiOverride)
+    {
+        var report = new BuildReport();
+
+        if (adapter.Identity.Sha256 is { Length: > 0 } expected)
+        {
+            var actual = Convert.ToHexString(SHA256.HashData(donorRom)).ToLowerInvariant();
+            if (!actual.StartsWith(expected.ToLowerInvariant(), StringComparison.Ordinal))
+                throw new RomFormatException($"donor ROM sha256 {actual[..16]}… does not match the adapter ({expected[..Math.Min(16, expected.Length)]}…)");
+        }
+
+        var work = (byte[])donorRom.Clone();
+        var vol = adapter.Volumes;
+
+        RunApcbChecks(profile, work, oemRom, report);
+
+        // --- PEI phase ---
+        var (header, pei) = PspZlib.Decompress(work.AsSpan(vol.BootBlobOffset, vol.BootBlobLength));
+        var donorFv = new FirmwareVolume(pei, vol.BootFvOffset);
+        var oemFv = new FirmwareVolume(oemRom, profile.OemPeiFvOffset ?? throw new RomFormatException("profile is missing oem_pei_fv_offset"));
+
+        var donorSections = SectionMap(donorFv, adapter.Modules);
+        var oemSections = SectionMap(oemFv, profile.OemModules ?? Array.Empty<ModuleEntry>());
+
+        var donorCopies = donorSections.ToDictionary(kv => kv.Key, kv => pei[kv.Value.Start..kv.Value.End]);
+        var oemCopies = oemSections.ToDictionary(kv => kv.Key, kv => oemRom[kv.Value.Start..kv.Value.End]);
+
+        IReadOnlyList<uint>? verbs = null;
+        var verbOp = profile.Operations.FirstOrDefault(o => o.Op == "verb_table");
+        if (verbOp is not null)
+        {
+            uint romBase = (uint)(0x1_0000_0000 - oemRom.Length);
+            verbs = VerbTable.ExtractHp(oemRom, profile.OemPeiFvOffset.Value, verbOp.NewCodec
+                ?? throw new RomFormatException("verb_table is missing new_codec"), romBase);
+        }
+
+        var ctx = new BuildContext(donorCopies, oemCopies) { HpVerbs = verbs };
+        CaptureBaseGpio(ctx, profile);
+
+        var peiOps = profile.Operations.Where(o => PeiOps.Contains(o.Op)).Select(OperationFactory.Create).ToList();
+        report.Section("Boot (PEI) volume");
+        foreach (var op in peiOps) { op.Check(ctx); report.Add(op.Apply(ctx)); }
+        foreach (var op in peiOps)
+            if (!op.Verify(ctx, out var msg))
+                throw new RomEditException($"post-check failed: {msg}");
+
+        // write the edited sections back and fix each PEIM file's checksums
+        foreach (var (family, (start, _, fileOffset)) in donorSections)
+        {
+            donorCopies[family].CopyTo(pei, start);
+            new FfsFile(pei, fileOffset).FixChecksums(pei);
+        }
+
+        RepackBootVolume(work, vol, header, pei, report);
+
+        // --- DXE phase: SMBIOS identity ---
+        if (profile.Operations.Any(o => o.Op == "smbios_identity"))
+            ApplySmbios(work, vol, profile, dmiOverride, report);
+
+        return new BuildResult(work, report);
+    }
+
+    static void RunApcbChecks(BoardProfile profile, byte[] donor, byte[] oem, BuildReport report)
+    {
+        var ops = profile.Operations.Where(o => o.Op == "apcb_check").ToList();
+        if (ops.Count == 0) return;
+        int donorApcb = First(Apcb.FindAll(RomImage.Load(donor)));
+        int oemApcb = First(Apcb.FindAll(RomImage.Load(oem)));
+        var ctx = new BuildContext(new(), new()) { OemRom = oem, DonorRom = donor, OemApcb = oemApcb, DonorApcb = donorApcb };
+        report.Section("Memory (APCB) check");
+        foreach (var spec in ops)
+        {
+            var op = OperationFactory.Create(spec);
+            op.Check(ctx);
+            report.Add(op.Apply(ctx));
+        }
+    }
+
+    static void CaptureBaseGpio(BuildContext ctx, BoardProfile profile)
+    {
+        foreach (var op in profile.Operations.Where(o => o.Op == "port_gpio" && o.Merge == "family_delta" && o.BaseFamily is not null))
+        {
+            var baseImg = ctx.DonorPeim(op.BaseFamily);
+            var table = CpmImage.FindTable(baseImg, "$A10", op.BasePlatformMask);
+            ctx.BaseGpio[op.BaseFamily!] = GpioTable.Read(baseImg, table).Entries;
+        }
+    }
+
+    static void RepackBootVolume(byte[] work, VolumeMap vol, byte[] header, byte[] pei, BuildReport report)
+    {
+        var blob = PspZlib.Compress(header, pei);
+        int ffsOffset = vol.BootBlobOffset - BootWrapperSize;
+        int oldFileSize = (int)Bin.U24(work, ffsOffset + 20);
+        int oldEnd = ffsOffset + oldFileSize;
+        int newFileSize = BootWrapperSize + blob.Length;
+        int newEnd = ffsOffset + newFileSize;
+        if (newEnd > work.Length - 0x1000)
+            throw new RomEditException("recompressed boot volume does not fit the flash image");
+
+        blob.CopyTo(work, vol.BootBlobOffset);
+        for (int i = newEnd; i < oldEnd; i++) work[i] = 0xFF;          // clear any shrinkage
+        Bin.W24(work, ffsOffset + 20, (uint)newFileSize);             // FFS file size
+        Bin.W24(work, ffsOffset + 0x18, (uint)(newFileSize - 0x18));  // GUID-defined section size
+        new FfsFile(work, ffsOffset).FixChecksums(work);
+        report.Add($"boot volume recompressed: 0x{oldFileSize:X} -> 0x{newFileSize:X} bytes");
+    }
+
+    static void ApplySmbios(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report)
+    {
+        var dmi = dmiOverride is null ? DmiIdentity.HpDefault : DmiIdentity.HpDefault.Merge(dmiOverride);
+        var dxeFv = new FirmwareVolume(work, vol.DxeFvOffset);
+        var dxeFile = dxeFv.FindByGuid(Guid.Parse(vol.DxeFileGuid ?? throw new RomFormatException("adapter is missing dxe_file_guid")));
+        var lzmaSection = dxeFile.Sections().FirstOrDefault(s => s.Type == SectionType.GuidDefined)
+            ?? throw new RomFormatException("DXE container has no GUID-defined LZMA section");
+
+        var dec = GuidedSection.DecompressLzmaGuided(work, lzmaSection);
+        var fvImage = SectionWalker.Walk(dec, 0, dec.Length).FirstOrDefault(s => s.Type == SectionType.FirmwareVolumeImage)
+            ?? throw new RomFormatException("decompressed DXE blob has no firmware-volume-image section");
+        var innerFv = new FirmwareVolume(dec, fvImage.DataOffset);
+        var (start, end) = SmbiosTable.LocateStaticData(innerFv);
+        var smbiosFile = innerFv.FindByGuid(SmbiosFileGuid);
+
+        var ctx = new BuildContext(new(), new()) { DxeVolume = dec, SmbiosStart = start, SmbiosEnd = end, Dmi = dmi };
+        report.Section("DXE volume (SMBIOS identity)");
+        var op = OperationFactory.Create(profile.Operations.First(o => o.Op == "smbios_identity"));
+        op.Check(ctx);
+        report.Add(op.Apply(ctx));
+
+        new FfsFile(dec, smbiosFile.Offset).FixChecksums(dec);
+        GuidedSection.ReplaceLzmaGuided(work, dxeFile, lzmaSection, dec);
+        report.Add("DXE volume recompressed");
+    }
+
+    static Dictionary<string, (int Start, int End, int FileOffset)> SectionMap(FirmwareVolume fv, IReadOnlyList<ModuleEntry> modules)
+    {
+        var byName = new Dictionary<string, List<FfsFile>>();
+        foreach (var f in fv.Files())
+        {
+            if (!byName.TryGetValue(f.Name(), out var list)) byName[f.Name()] = list = new List<FfsFile>();
+            list.Add(f);
+        }
+        var map = new Dictionary<string, (int, int, int)>();
+        foreach (var m in modules)
+        {
+            if (!byName.TryGetValue(m.Name, out var list) || m.Index >= list.Count)
+                throw new RomFormatException($"module {m.Name}#{m.Index} (family {m.Family}) not found in the volume");
+            var (s, e) = list[m.Index].ImageSection();
+            map[m.Family] = (s, e, list[m.Index].Offset);
+        }
+        return map;
+    }
+
+    static int First(IReadOnlyList<int> xs) =>
+        xs.Count > 0 ? xs[0] : throw new RomFormatException("no APCB block found");
+}

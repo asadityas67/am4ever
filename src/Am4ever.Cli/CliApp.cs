@@ -31,31 +31,66 @@ public static class CliApp
                 io.Out.WriteLine($"am4ever {Version}");
                 return ExitOk;
 
-            case "build":
-                var flags = args.Skip(1).ToList();
-                var unknown = flags.Where(f => f != RiskFlag).ToList();
-                if (unknown.Count > 0)
+            case "inspect":
+                if (args.Length < 2)
                 {
-                    io.Err.WriteLine($"am4ever build: unknown option {unknown[0]}");
+                    io.Err.WriteLine("am4ever inspect: a ROM file path is required");
                     PrintUsage(io.Err);
                     return ExitUsage;
                 }
+                return Commands.InspectCommand.Run(args[1], io);
+
+            case "build":
+                var parsed = ParseBuildArgs(args.Skip(1).ToArray(), io);
+                if (parsed is null)
+                    return ExitUsage;
                 var ack = RiskAcknowledgement.NewForThisLaunch();
-                if (flags.Contains(RiskFlag) || AskInteractively(io))
+                if (parsed.IUnderstandTheRisk || AskInteractively(io))
                     ack.Accept();
                 if (!ack.Accepted)
                 {
                     io.Err.WriteLine($"Refused: you must accept the risk. Pass {RiskFlag} or answer 'yes' at the prompt.");
                     return ExitRiskRefused;
                 }
-                io.Out.WriteLine("build: not implemented yet (milestone 3)");
-                return ExitOk;
+                return Commands.BuildCommand.Run(parsed, io);
 
             default:
                 io.Err.WriteLine($"am4ever: unknown command '{args[0]}'");
                 PrintUsage(io.Err);
                 return ExitUsage;
         }
+    }
+
+    static Commands.BuildArgs? ParseBuildArgs(string[] a, IConsoleIo io)
+    {
+        string? profile = null, outPath = null, dmi = null;
+        bool risk = false;
+        var positionals = new List<string>();
+        for (int i = 0; i < a.Length; i++)
+        {
+            switch (a[i])
+            {
+                case RiskFlag: risk = true; break;
+                case "--profile": if (++i >= a.Length) return BuildUsage(io, "--profile needs a value"); profile = a[i]; break;
+                case "--out": if (++i >= a.Length) return BuildUsage(io, "--out needs a value"); outPath = a[i]; break;
+                case "--dmi": if (++i >= a.Length) return BuildUsage(io, "--dmi needs a value"); dmi = a[i]; break;
+                default:
+                    if (a[i].StartsWith("--", StringComparison.Ordinal)) return BuildUsage(io, $"unknown option {a[i]}");
+                    positionals.Add(a[i]);
+                    break;
+            }
+        }
+        if (positionals.Count > 2) return BuildUsage(io, "too many arguments");
+        if (positionals.Count < 2 || profile is null || outPath is null)
+            return BuildUsage(io, "build needs <your-dump> <donor> --profile <id|file> --out <file>");
+        return new Commands.BuildArgs(positionals[0], positionals[1], profile, outPath, dmi, risk);
+    }
+
+    static Commands.BuildArgs? BuildUsage(IConsoleIo io, string message)
+    {
+        io.Err.WriteLine($"am4ever build: {message}");
+        PrintUsage(io.Err);
+        return null;
     }
 
     static bool AskInteractively(IConsoleIo io)
@@ -80,7 +115,9 @@ public static class CliApp
         w.WriteLine("usage: am4ever <command> [options]");
         w.WriteLine();
         w.WriteLine("commands:");
-        w.WriteLine($"  build {RiskFlag}   build a modded BIOS (milestone 3)");
+        w.WriteLine("  inspect <rom>                   report a ROM's size, AMD directories and AGESA (read-only)");
+        w.WriteLine($"  build <your-dump> <donor> --profile <id|file> --out <file> [--dmi <file>] {RiskFlag}");
+        w.WriteLine("                                  build a modded BIOS from your dump, a donor ROM and a profile");
         w.WriteLine("  --version                       print the version");
         w.WriteLine("  --help                          print this help");
     }
