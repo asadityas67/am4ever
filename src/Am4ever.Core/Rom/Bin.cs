@@ -9,7 +9,7 @@ public static class Bin
     static void Need(byte[] b, int off, int len)
     {
         if (off < 0 || len < 0 || off + len > b.Length)
-            throw new RomFormatException($"read of {len} byte(s) at {off:#0x} is outside the {b.Length}-byte buffer");
+            throw new RomFormatException($"read of {len} byte(s) at 0x{off:X} is outside the {b.Length}-byte buffer");
     }
 
     public static byte U8(byte[] b, int off) { Need(b, off, 1); return b[off]; }

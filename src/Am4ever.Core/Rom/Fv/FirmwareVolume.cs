@@ -52,8 +52,10 @@ public sealed class FirmwareVolume
         _buffer = buffer;
         Offset = offset;
         if (Bin.U32(buffer, offset + 40) != Signature)
-            throw new RomFormatException($"no firmware volume signature at {offset:#0x}");
+            throw new RomFormatException($"no firmware volume signature at 0x{offset:X}");
         Length = (long)Bin.U64(buffer, offset + 32);
+        if (Length < 56 || (long)offset + Length > buffer.Length)
+            throw new RomFormatException($"firmware volume at 0x{offset:X} has an out-of-range length {Length}");
         int headerLength = Bin.U16(buffer, offset + 48);
         int ext = Bin.U16(buffer, offset + 52);
         int first = offset + headerLength;
@@ -64,8 +66,6 @@ public sealed class FirmwareVolume
         }
         First = (first + 7) & ~7;
         End = offset + (int)Length;
-        if (End > buffer.Length)
-            throw new RomFormatException($"firmware volume at {offset:#0x} ends past the buffer");
     }
 
     public byte[] Buffer => _buffer;
@@ -83,9 +83,9 @@ public sealed class FirmwareVolume
                 yield break;
             var file = new FfsFile(_buffer, o);
             if (file.Size < 24)
-                throw new RomFormatException($"FFS file at {o:#0x} has an invalid size {file.Size}");
+                throw new RomFormatException($"FFS file at 0x{o:X} has an invalid size {file.Size}");
             if (file.End > End)
-                throw new RomFormatException($"FFS file at {o:#0x} runs past the volume end");
+                throw new RomFormatException($"FFS file at 0x{o:X} runs past the volume end");
             yield return file;
             o = (file.End + 7) & ~7;
         }
@@ -96,7 +96,7 @@ public sealed class FirmwareVolume
         foreach (var f in Files())
             if (f.Guid == guid)
                 return f;
-        throw new RomFormatException($"no FFS file with GUID {guid} in the volume at {Offset:#0x}");
+        throw new RomFormatException($"no FFS file with GUID {guid} in the volume at 0x{Offset:X}");
     }
 
     public IReadOnlyList<FfsFile> FindByName(string name) =>

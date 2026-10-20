@@ -60,6 +60,25 @@ public static class SyntheticFv
         return Build(fileEnd + freeBytes, fileGuid, body);
     }
 
+    /// <summary>A volume whose first FFS file is a large-file (attr 0x01) with a 2 GiB size field.</summary>
+    public static byte[] OversizedLargeFile()
+    {
+        var buf = new byte[0x10000];
+        Ffs2.ToByteArray().CopyTo(buf, 16);
+        Bin.W64(buf, 32, (ulong)buf.Length);
+        Bin.W32(buf, 40, 0x4856465F);           // _ F V H
+        Bin.W16(buf, 48, FvHeaderLength);
+        buf[55] = 2;
+        int o = (FvHeaderLength + 7) & ~7;
+        Guid.NewGuid().ToByteArray().CopyTo(buf, o);
+        buf[o + 18] = SectionType.Raw;
+        buf[o + 19] = 0x01;                      // large-file attribute
+        Bin.W24(buf, o + 20, 0xFFFFFF);
+        buf[o + 23] = 0xF8;
+        Bin.W64(buf, o + 24, 0x8000_0000UL);     // 64-bit size: 2 GiB, overflows int
+        return buf;
+    }
+
     public static void CorruptFirstFileSizeToZero(byte[] buf)
     {
         int o = (FvHeaderLength + 7) & ~7;

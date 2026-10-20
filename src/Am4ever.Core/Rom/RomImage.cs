@@ -35,7 +35,7 @@ public sealed class RomImage
             ? (long)location - (0x1_0000_0000 - Size)
             : (long)location;
         if (off < 0 || off >= Size)
-            throw new RomFormatException($"location {location:#0x} maps outside the {Size}-byte image");
+            throw new RomFormatException($"location 0x{location:X} maps outside the {Size}-byte image");
         return (int)off;
     }
 }

@@ -32,7 +32,7 @@ public sealed class AmdDirectory
             MagicPspL2 => AmdDirKind.PspL2,
             MagicBios => AmdDirKind.Bios,
             MagicBiosL2 => AmdDirKind.BiosL2,
-            _ => throw new RomFormatException($"no AMD directory magic at {offset:#0x}"),
+            _ => throw new RomFormatException($"no AMD directory magic at 0x{offset:X}"),
         };
         DirOffset = offset;
         StoredChecksum = Bin.U32(data, offset + 4);

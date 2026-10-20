@@ -28,8 +28,10 @@ public sealed class FfsFile
             Size = Bin.U24(buffer, offset + 20);
             HeaderLength = 24;
         }
+        if (Size < HeaderLength || (long)offset + Size > buffer.Length)
+            throw new RomFormatException($"FFS file at 0x{offset:X} has an out-of-range size {Size}");
         DataOffset = offset + HeaderLength;
-        End = offset + (int)Size;
+        End = offset + (int)Size;              // safe: Size is bounded by the buffer (<= 32 MiB)
     }
 
     public int Offset { get; }
@@ -44,7 +46,7 @@ public sealed class FfsFile
     public IReadOnlyList<FvSection> Sections()
     {
         if (End > _buffer.Length)
-            throw new RomFormatException($"FFS file at {Offset:#0x} ends past the buffer");
+            throw new RomFormatException($"FFS file at 0x{Offset:X} ends past the buffer");
         return SectionWalker.Walk(_buffer, DataOffset, End);
     }
 

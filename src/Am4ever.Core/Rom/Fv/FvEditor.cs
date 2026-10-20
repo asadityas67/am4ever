@@ -34,7 +34,7 @@ public static class FvEditor
                 $"cannot append {fileSize}-byte file: only {fv.End - last} bytes free in the volume");
         for (int i = last; i < end; i++)
             if (buffer[i] != 0xFF)
-                throw new RomEditException($"free space at {i:#0x} is not erased (0xFF); refusing to overwrite");
+                throw new RomEditException($"free space at 0x{i:X} is not erased (0xFF); refusing to overwrite");
 
         guid.ToByteArray().CopyTo(buffer, last);
         buffer[last + 18] = SectionType.Raw;
