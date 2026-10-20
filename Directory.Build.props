@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>embedded</DebugType>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
     <Version>0.1.0</Version>
     <Authors>am4ever contributors</Authors>
     <PackageLicenseExpression>GPL-2.0-or-later</PackageLicenseExpression>

@@ -42,6 +42,20 @@ public static class RepoFiles
         return rel.StartsWith("docs/", StringComparison.Ordinal) || rel.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>True if a tracked file at <paramref name="relPath"/> with these bytes breaks the no-firmware rule.</summary>
+    public static bool ViolatesFirmwarePolicy(string relPath, byte[] bytes)
+    {
+        var rel = relPath.Replace('\\', '/');
+        var isDoc = rel.StartsWith("docs/", StringComparison.Ordinal) || rel.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+        // Docs may name the signatures in prose, but only text is exempt: firmware always contains NUL bytes.
+        if (isDoc && bytes.AsSpan().IndexOf((byte)0) < 0)
+            return false;
+        return FirmwareSignatures.Any(n => bytes.AsSpan().IndexOf(Encoding.ASCII.GetBytes(n)) >= 0);
+    }
+
+    static readonly string[] FirmwareSignatures =
+        { "_F" + "VH", "$P" + "SP", "$B" + "HD", "$P" + "L2", "$B" + "L2" };
+
     public static bool ContainsAny(string path, params string[] needles)
     {
         var bytes = File.ReadAllBytes(path);

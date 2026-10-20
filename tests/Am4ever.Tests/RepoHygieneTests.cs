@@ -3,15 +3,12 @@ namespace Am4ever.Tests;
 
 public class RepoHygieneTests
 {
-    // Built from pieces so this source file doesn't itself contain the signatures.
-    static readonly string[] FirmwareSignatures =
-        { "_F" + "VH", "$P" + "SP", "$B" + "HD", "$P" + "L2", "$B" + "L2" };
-
     [Fact] public void NoTrackedFileExceeds256KiB() =>
         Assert.DoesNotContain(RepoFiles.Tracked(), f => new FileInfo(f).Length > 262144);
 
     [Fact] public void NoTrackedNonDocFileContainsFirmwareSignatures() =>
-        Assert.DoesNotContain(RepoFiles.Tracked(), f => !RepoFiles.IsDoc(f) && RepoFiles.ContainsAny(f, FirmwareSignatures));
+        Assert.DoesNotContain(RepoFiles.Tracked(),
+            f => RepoFiles.ViolatesFirmwarePolicy(Path.GetRelativePath(RepoFiles.Root(), f), File.ReadAllBytes(f)));
 
     [Fact] public void EveryCsFileHasSpdxHeader() =>
         Assert.DoesNotContain(RepoFiles.Tracked(), f => f.EndsWith(".cs")

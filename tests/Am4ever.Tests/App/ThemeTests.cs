@@ -32,8 +32,14 @@ public class ThemeTests
         var p = new FakePlatformTheme(ThemeVariant.Light);
         var s = new ThemeService(Application.Current!, p, ThemeSettingsStore.InMemory());
         s.SetMode(ThemeMode.FollowSystem);
+        Assert.Equal(ThemeVariant.Default, Application.Current!.RequestedThemeVariant);
+        var changes = 0; s.EffectiveChanged += (_, _) => changes++;
         p.Raise(ThemeVariant.Dark);
         Assert.Equal(ThemeVariant.Dark, s.Effective);
+        Assert.Equal(1, changes);
+        s.SetMode(ThemeMode.Dark); changes = 0;
+        p.Raise(ThemeVariant.Light);
+        Assert.Equal(0, changes);
     }
 
     [Fact] public void CorruptSettingsFallBackToFollowSystem()

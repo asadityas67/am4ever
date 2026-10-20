@@ -9,6 +9,8 @@
     <PackageReference Include="Avalonia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
     <PackageReference Include="Avalonia.Themes.Simple" Version="11.2.3" />
+    <!-- Avalonia 11.2.3 pulls in 0.20.0, which has GHSA-xrw6-gwf8-vvr9 (High); 0.21.3 is the first patched release. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Am4ever.Core\Am4ever.Core.csproj" />

@@ -28,7 +28,7 @@ jobs:
         run: ./scripts/publish.ps1 -Rid ${{ matrix.rid }}
       - name: Publish (Linux)
         if: runner.os == 'Linux'
-        run: ./scripts/publish.sh ${{ matrix.rid }}
+        run: bash scripts/publish.sh ${{ matrix.rid }}
       - name: Smoke-run the CLI (Linux)
         if: runner.os == 'Linux'
         run: |

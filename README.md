@@ -29,6 +29,13 @@ to write it back with your programmer before you flash anything.
 
 am4ever is not affiliated with AMD, AMI, ASRock, Biostar, HP, Dell or Lenovo.
 
+## Accessibility
+
+The startup warning blinks about once a second. If your system's "reduce
+motion" / "show animations off" setting is on (Windows, or GNOME), it stays solid
+instead. On other desktops (KDE and others) set `AM4EVER_REDUCE_MOTION=1` in the
+environment to turn the blinking off.
+
 ## Building
 
 Requires the .NET 8 SDK.

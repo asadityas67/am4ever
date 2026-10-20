@@ -43,10 +43,25 @@ public class RiskWarningWindowTests
 
     [AvaloniaFact] public void Warning_CloseButton_ExitsApp()
     {
-        var w = Make(); w.Show();
+        var w = Make();
+        var shown = w.ShowAndWaitAsync();
         w.FindControl<CheckBox>("AcceptCheck")!.IsChecked = true;
         w.Close();                       // title-bar X / Alt+F4 path
         Assert.False(w.Accepted);
+        Assert.True(shown.IsCompleted);
+        Assert.False(shown.Result);
+    }
+
+    [AvaloniaFact] public async Task Warning_ClosedThroughStartupFlow_ShutsDownWithoutMain()
+    {
+        var w = Make();
+        bool created = false, shut = false;
+        var flow = new Am4ever.App.StartupFlow(w.ShowAndWaitAsync, () => { created = true; return new Window(); }, () => shut = true);
+        var run = flow.RunAsync();
+        w.Close();
+        Assert.Null(await run);
+        Assert.True(shut);
+        Assert.False(created);
     }
 
     [AvaloniaFact] public void BlinksEvery500ms()
