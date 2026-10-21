@@ -65,7 +65,7 @@ static uint32_t rd32(const uint8_t *p) { return p[0] | (p[1] << 8) | (p[2] << 16
 static int run_ecfan(const uint8_t *pe, size_t pe_len, Sim *s, uint64_t limit) {
     if (pe_len < 0x40) { fprintf(stderr, "pe too small\n"); return -1; }
     uint32_t pe_off = rd32(pe + 0x3C);
-    if (pe_off + 24 + 64 > pe_len) { fprintf(stderr, "bad PE header\n"); return -1; }
+    if ((uint64_t)pe_off + 24 + 64 > pe_len) { fprintf(stderr, "bad PE header\n"); return -1; }  // 64-bit: no wrap on a huge e_lfanew
     uint16_t nsec = pe[pe_off + 6] | (pe[pe_off + 7] << 8);
     uint16_t opt = pe[pe_off + 20] | (pe[pe_off + 21] << 8);
     uint32_t entry = rd32(pe + pe_off + 24 + 16);

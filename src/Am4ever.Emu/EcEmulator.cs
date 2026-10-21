@@ -53,9 +53,13 @@ public static class EcEmulator
             }
 
             using var proc = Process.Start(psi) ?? throw new EmulatorException($"could not start {host}");
-            string stdout = proc.StandardOutput.ReadToEnd();
-            string stderr = proc.StandardError.ReadToEnd();
+            // Drain both pipes asynchronously, then bound on exit — otherwise a hung host blocks the
+            // reader forever and the 30s cap never fires (and a full stdout pipe could deadlock).
+            var outTask = proc.StandardOutput.ReadToEndAsync();
+            var errTask = proc.StandardError.ReadToEndAsync();
             if (!proc.WaitForExit(30_000)) { try { proc.Kill(true); } catch { } throw new EmulatorException("emulator host timed out"); }
+            string stdout = outTask.GetAwaiter().GetResult();
+            string stderr = errTask.GetAwaiter().GetResult();
             if (proc.ExitCode != 0)
                 throw new EmulatorException($"emulator host exited {proc.ExitCode}: {stderr.Trim()}");
             return Parse(stdout);
