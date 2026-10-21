@@ -44,4 +44,27 @@ public static class FvEditor
         body.CopyTo(buffer.AsSpan(last + FfsHeaderLength, body.Length));
         new FfsFile(buffer, last).FixChecksums(buffer);
     }
+
+    /// <summary>
+    /// Place an already-built FFS file in the volume's trailing free space (which must be all 0xFF and
+    /// large enough), at the 8-byte-aligned end of the existing files. Returns the insertion offset.
+    /// Unlike <see cref="AppendRawFile"/>, the file arrives complete — no header is built and no checksum fixed.
+    /// </summary>
+    public static int InsertFile(byte[] buffer, FirmwareVolume fv, ReadOnlySpan<byte> ffsFile)
+    {
+        int at = fv.First;
+        foreach (var f in fv.Files())
+            at = (f.End + 7) & ~7;
+
+        int end = at + ffsFile.Length;
+        if (end > fv.End)
+            throw new RomEditException(
+                $"cannot insert {ffsFile.Length}-byte file: only {fv.End - at} bytes free in the volume");
+        for (int i = at; i < end; i++)
+            if (buffer[i] != 0xFF)
+                throw new RomEditException($"free space at 0x{i:X} is not erased (0xFF); refusing to overwrite");
+
+        ffsFile.CopyTo(buffer.AsSpan(at, ffsFile.Length));
+        return at;
+    }
 }

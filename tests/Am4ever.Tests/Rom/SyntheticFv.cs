@@ -79,6 +79,25 @@ public static class SyntheticFv
         return buf;
     }
 
+    /// <summary>A complete, valid FFS raw file (24-byte header, type 0x19, checksums fixed).</summary>
+    public static byte[] RawFile(Guid guid, byte[] body)
+    {
+        int fileSize = 24 + body.Length;
+        var f = new byte[fileSize];
+        guid.ToByteArray().CopyTo(f, 0);
+        f[18] = SectionType.Raw;
+        f[19] = 0;
+        Bin.W24(f, 20, (uint)fileSize);
+        f[23] = 0xF8;
+        body.CopyTo(f, 24);
+        f[16] = 0; f[17] = 0;
+        byte state = f[23]; f[23] = 0;
+        f[16] = (byte)((0x100 - Sum(f, 0, 24)) & 0xFF);
+        f[17] = 0xAA;
+        f[23] = state;
+        return f;
+    }
+
     /// <summary>Wrap an already-built FFS file in a minimal volume so it can be parsed; returns the file offset.</summary>
     public static byte[] WrapFile(byte[] ffs, out int fileOffset)
     {

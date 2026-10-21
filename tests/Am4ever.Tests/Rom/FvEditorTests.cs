@@ -24,6 +24,24 @@ public class FvEditorTests
         Assert.Equal(before, buf);
     }
 
+    [Fact] public void InsertFile_ThenReParseFindsIt()
+    {
+        var buf = SyntheticFv.WithFreeSpace(0x4000, out _);
+        var fv = new FirmwareVolume(buf, 0);
+        var g = Guid.NewGuid();
+        FvEditor.InsertFile(buf, fv, SyntheticFv.RawFile(g, new byte[] { 1, 2, 3, 4 }));
+        Assert.Equal(g, new FirmwareVolume(buf, 0).FindByGuid(g).Guid);
+    }
+
+    [Fact] public void InsertFile_NoRoom_Throws()
+    {
+        var buf = SyntheticFv.WithFreeSpace(0x20, out _);
+        var before = (byte[])buf.Clone();
+        var fv = new FirmwareVolume(buf, 0);
+        Assert.Throws<RomEditException>(() => FvEditor.InsertFile(buf, fv, SyntheticFv.RawFile(Guid.NewGuid(), new byte[0x1000])));
+        Assert.Equal(before, buf);
+    }
+
     [Fact] public void ReplaceFileBody_WrongLength_Throws()
     {
         var buf = SyntheticFv.WithOneFile(out _);
