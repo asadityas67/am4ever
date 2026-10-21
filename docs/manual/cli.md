@@ -90,8 +90,9 @@ ops take a `family` (the CPM module family: `ZP` Pinnacle, `RV` Raven, `RN` Reno
 ```
 
 A board port is just this list, repeated per CPU family, ending with `smbios_identity`, `add_ec_init`
-and `apcb_check`. The structures each op edits — CPM tables, DXIO descriptors, the DDI block, verb
-tables, SMBIOS, APCB — are described in [reference.md](reference.md).
+and `apcb_check`. The complete, annotated profile is in [example-profile.md](example-profile.md); the
+structures each op edits — CPM tables, DXIO descriptors, the DDI block, verb tables, SMBIOS, APCB —
+are described in [reference.md](reference.md).
 
 ## Programmatic use
 The same pipeline is `BuildPipeline.Build(donor, oem, profile, adapter, dmi)` in `Am4ever.Core`; the
