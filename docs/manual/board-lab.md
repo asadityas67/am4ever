@@ -28,5 +28,5 @@ does automatically.
 ## Not in this build
 The hex editor, Capstone disassembly, in-place table editors, the EC-init sequence composer, and
 profile export/import are not implemented yet — Board Lab currently covers analyse, compare and the
-emulator console. The underlying operations all exist in the core and CLI; the expert editing UI is
-future work.
+emulator console. The underlying operations all exist in the core and CLI (see [cli.md](cli.md));
+the expert editing UI is future work.

@@ -24,6 +24,7 @@ The app shows this warning on every launch and will not build for a beginner if 
 |---|---|
 | [wizard.md](wizard.md) | **Beginners** — the six-step wizard: dump → profile → donor → identity → build → flash. |
 | [board-lab.md](board-lab.md) | **Experts** — analysing a ROM, comparing modules, running them in the emulator. |
+| [cli.md](cli.md) | The `am4ever` command line (`inspect`, `build`) and every build operation a profile can name. |
 | [reference.md](reference.md) | The AM4/AMI structures, the profile operations, the donor-adapter format, the emulator host, and a one-page cheat sheet. |
 
 ## How it works, in one paragraph
