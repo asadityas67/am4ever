@@ -19,13 +19,29 @@ am4ever <command> [options]
   --help
 ```
 
+`--help` (or no arguments) prints the usage above to stdout; `--version` prints `am4ever <version>`.
+Both exit `0`. On Windows use `am4ever.exe` wherever these examples say `am4ever`.
+
+```
+$ am4ever --version
+am4ever 0.1.0
+```
+
+The warning always comes first, on **stderr**, in red on a colour terminal — so stdout stays clean
+for piping even though you still see the warning:
+
+```
+$ am4ever --version 2>/dev/null
+am4ever 0.1.0
+```
+
 Exit codes: `0` ok, `2` risk not accepted, `64` usage error, `1` a build/inspect failure (bad file,
 checksum mismatch, malformed profile).
 
 ## `inspect <rom>` — read-only
 Loads an AM4 image and prints its size, the AMD PSP/BIOS directories it finds (kind, offset, entry
-count), and the AGESA version string. It never writes. Use it to confirm a dump is a valid AM4 ROM
-and to read a donor's AGESA before trusting a profile.
+count), and the AGESA version string. It never writes. Use it to confirm a dump is a valid AM4 ROM,
+to read a donor's AGESA before trusting a profile, or to sanity-check a fresh dump off the programmer.
 
 ```
 $ am4ever inspect donor.bin
@@ -33,8 +49,21 @@ ROM: donor.bin
 size: 16 MiB
 AMD directories: 4
   PspL1 @ 020000 (16 entries)
-  ...
-AGESA: AGESA!V9 PinnaclePI-AM4 1.0.0.6
+  PspL2 @ 120000 (24 entries)
+  BhdL1 @ 030000 (31 entries)
+  BhdL2 @ 160000 (40 entries)
+AGESA: AGESA!V9 ComboAm4v2PI 1.2.0.3c
+```
+(offsets and counts vary by image; the AGESA line is illustrative.)
+
+A file that is missing, or not an 8/16/32 MiB AM4 image, fails with exit `1` and a message on
+stderr — nothing is written either way:
+
+```
+$ am4ever inspect notes.txt
+am4ever inspect: notes.txt is not a valid AM4 ROM (not a valid AM4 ROM: size 2048 bytes, expected 8, 16 or 32 MiB)
+$ echo $?
+1
 ```
 
 ## `build` — make a modded image
@@ -42,17 +71,94 @@ AGESA: AGESA!V9 PinnaclePI-AM4 1.0.0.6
 am4ever build <your-dump> <donor> --profile <id|file> --out <out.bin> [--dmi machine.json] --i-understand-the-risk
 ```
 - `<your-dump>` your OEM board's own BIOS dump; `<donor>` the retail donor the profile names
-  (donor first in the pipeline, but on the command line it is `<dump> <donor>`).
+  (the pipeline treats the donor as the base, but on the command line the order is `<dump> <donor>`).
 - `--profile` a **bundled profile id** (e.g. `hp-285-g3-8434`) or a path to a profile JSON.
 - `--out` the image to write. On success it also writes `<out>.report.md` listing everything changed,
   inferred and untested.
 - `--dmi` optional machine-data JSON (from the save-DMI helper) to carry your real serial/UUID/SKU
   instead of the generic identity.
-- `--i-understand-the-risk` accepts the risk non-interactively; without it, an interactive terminal
-  prompts for `yes` and a non-terminal (CI) refuses with exit 2.
+- `--i-understand-the-risk` accepts the risk non-interactively (see the risk gate below).
+
+**A plain build with a bundled profile.** On success it writes the image and a report beside it, and
+prints both paths:
+
+```
+$ am4ever build hp-dump.bin asrock-p10.43.bin --profile hp-285-g3-8434 --out modded.bin --i-understand-the-risk
+wrote modded.bin (16777216 bytes)
+wrote modded.bin.report.md
+```
+
+**With your own profile file** instead of a bundled id — `--profile` takes a path when the value is
+an existing file:
+
+```
+$ am4ever build hp-dump.bin asrock-p10.43.bin --profile ./my-board.json --out modded.bin --i-understand-the-risk
+```
+
+**Carrying your real machine identity** with `--dmi` (otherwise the image gets the generic board
+identity):
+
+```
+$ am4ever build hp-dump.bin asrock-p10.43.bin --profile hp-285-g3-8434 --out modded.bin \
+      --dmi hp_dmi.json --i-understand-the-risk
+```
 
 **If any check fails, no image is written** — the donor SHA, directory/FFS checksums, and the
-round-trip recompression are all verified before the file is saved.
+round-trip recompression are all verified first. A wrong or wrong-version donor is caught by its
+SHA-256 and the build stops with exit `1`:
+
+```
+$ am4ever build hp-dump.bin wrong-donor.bin --profile hp-285-g3-8434 --out modded.bin --i-understand-the-risk
+am4ever build: donor ROM sha256 4c2b91a7cf3e0d82… does not match the adapter (1970ffd87cf68ec3…)
+```
+
+### The risk gate
+`build` will not run until you accept the risk, and it is checked **before** any files are read:
+
+- **With `--i-understand-the-risk`** — accepted straight away (the examples above). Use this in
+  scripts.
+- **Interactive terminal, no flag** — it prompts on stderr and waits:
+  ```
+  $ am4ever build hp-dump.bin asrock-p10.43.bin --profile hp-285-g3-8434 --out modded.bin
+  Type 'yes' to accept the risk and continue: yes
+  wrote modded.bin (16777216 bytes)
+  wrote modded.bin.report.md
+  ```
+  Anything other than `yes` refuses with exit `2`.
+- **Non-terminal (CI, a pipe), no flag** — never waits for input; refuses immediately:
+  ```
+  Refused: you must accept the risk. Pass --i-understand-the-risk or answer 'yes' at the prompt.
+  $ echo $?
+  2
+  ```
+
+A usage mistake — a missing `--out`, an unknown option, too many paths — exits `64` and reprints the
+usage, before the risk gate:
+
+```
+$ am4ever build hp-dump.bin asrock-p10.43.bin --profile hp-285-g3-8434
+am4ever build: build needs <your-dump> <donor> --profile <id|file> --out <file>
+usage: am4ever <command> [options]
+...
+```
+
+### In a script
+The warning is on stderr and the result paths are on stdout, so you can branch on the exit code and
+keep stdout parseable:
+
+```bash
+if am4ever build hp-dump.bin asrock-p10.43.bin \
+      --profile hp-285-g3-8434 --out modded.bin --i-understand-the-risk
+then
+    echo "built — now read modded.bin.report.md before flashing"
+else
+    case $? in
+      2)  echo "risk not accepted";;
+      64) echo "bad command line";;
+      *)  echo "build failed — see the message above";;
+    esac
+fi
+```
 
 ## The build operations
 A profile's `operations` list is applied in order against the donor's decompressed PEI volume (plus
