@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\src\Am4ever.Core\Am4ever.Core.csproj" />
     <ProjectReference Include="..\..\src\Am4ever.Cli\Am4ever.Cli.csproj" />
     <ProjectReference Include="..\..\src\Am4ever.App\Am4ever.App.csproj" />
+    <ProjectReference Include="..\..\src\Am4ever.Emu\Am4ever.Emu.csproj" />
   </ItemGroup>
 </Project>
