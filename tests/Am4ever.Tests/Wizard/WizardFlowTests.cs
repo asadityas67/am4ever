@@ -33,6 +33,31 @@ public class WizardFlowTests
         Assert.True(w.CanAdvance(out _));
     }
 
+    [Fact] public void Step2_OffersBundledProfileForSize()
+    {
+        var w = new WizardFlow(); w.SetDump(Rom16());
+        Assert.Contains(w.MatchingProfiles(), p => p.Board.BoardId == "8434");
+    }
+
+    [RomFact] public void Step3_WrongDonorHash_Blocks()
+    {
+        var w = new WizardFlow();
+        w.SetDump(File.ReadAllBytes(TestRoms.HpF65!)); Assert.True(w.Next());      // Dump -> Profile
+        w.SelectProfile(w.MatchingProfiles()[0]); Assert.True(w.Next());          // Profile -> Donor
+        w.SetDonor(Rom16());
+        Assert.False(w.CanAdvance(out var r));
+        Assert.Contains("SHA-256", r, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [RomFact] public void Step3_CorrectDonorHash_Advances()
+    {
+        var w = new WizardFlow();
+        w.SetDump(File.ReadAllBytes(TestRoms.HpF65!)); w.Next();
+        w.SelectProfile(w.MatchingProfiles()[0]); w.Next();
+        w.SetDonor(File.ReadAllBytes(TestRoms.AsrockP1043!));
+        Assert.True(w.CanAdvance(out _));
+    }
+
     [Fact] public void Steps_InOrder() =>
         Assert.Equal(new[] { WizardStep.Dump, WizardStep.Profile, WizardStep.Donor, WizardStep.Identity, WizardStep.Build, WizardStep.Flash },
             Enum.GetValues<WizardStep>());

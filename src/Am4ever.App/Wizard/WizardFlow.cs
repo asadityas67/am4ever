@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+using System.Security.Cryptography;
+using Am4ever.Core.Build;
+using Am4ever.Core.Profile;
 using Am4ever.Core.Rom;
 using Am4ever.Core.Rom.Amd;
 
@@ -17,6 +20,28 @@ public sealed class WizardFlow
 
     public byte[]? PrimaryDump { get; private set; }
     public byte[]? SecondDump { get; private set; }
+    public BoardProfile? SelectedProfile { get; private set; }
+    DonorAdapter? _adapter;
+    byte[]? _donor;
+
+    /// <summary>Bundled profiles whose ROM size matches the dump (shown at step 2).</summary>
+    public IReadOnlyList<BoardProfile> MatchingProfiles()
+    {
+        if (PrimaryDump is null) return Array.Empty<BoardProfile>();
+        var list = new List<BoardProfile>();
+        foreach (var id in BundledData.ProfileIds)
+            try { var p = BundledData.LoadProfile(id); if (p.Board.Match.RomSize == PrimaryDump.Length) list.Add(p); }
+            catch { /* skip an unreadable bundled profile */ }
+        return list;
+    }
+
+    public void SelectProfile(BoardProfile profile)
+    {
+        SelectedProfile = profile;
+        _adapter = BundledData.LoadAdapter(profile.Donor.Adapter);
+    }
+
+    public void SetDonor(byte[] donor) => _donor = donor;
 
     public void SetDump(byte[] primary, byte[]? secondRead = null)
     {
@@ -69,8 +94,23 @@ public sealed class WizardFlow
         { reason = "not an AMD AM4 image (no PSP/BIOS directories found)"; return false; }
         return true;
     }
-    bool CanAdvanceProfile(out string? reason) { reason = "no profile selected"; return false; }
-    bool CanAdvanceDonor(out string? reason) { reason = "donor not verified"; return false; }
+    bool CanAdvanceProfile(out string? reason)
+    {
+        if (SelectedProfile is null) { reason = "select a board profile"; return false; }
+        reason = null; return true;
+    }
+
+    bool CanAdvanceDonor(out string? reason)
+    {
+        reason = null;
+        if (_donor is null) { reason = "load the donor BIOS file"; return false; }
+        var expected = _adapter?.Identity.Sha256;
+        if (string.IsNullOrEmpty(expected)) { reason = "the profile's donor adapter has no SHA-256 to verify against"; return false; }
+        var actual = Convert.ToHexString(SHA256.HashData(_donor)).ToLowerInvariant();
+        if (!actual.StartsWith(expected.ToLowerInvariant(), StringComparison.Ordinal))
+        { reason = $"donor SHA-256 {actual[..16]}… does not match the profile ({expected[..Math.Min(16, expected.Length)]}…)"; return false; }
+        return true;
+    }
     bool CanAdvanceIdentity(out string? reason) { reason = null; return true; }
     bool CanAdvanceBuild(out string? reason) { reason = "build not completed"; return false; }
 }

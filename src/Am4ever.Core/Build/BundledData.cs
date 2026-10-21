@@ -12,5 +12,17 @@ public static class BundledData
     public static DonorAdapter LoadAdapter(string id) =>
         ProfileLoader.LoadAdapter(File.ReadAllBytes(Resolve("donors", id)));
 
+    /// <summary>Ids of every bundled board profile (file names in the profiles folder, without extension).</summary>
+    public static IEnumerable<string> ProfileIds
+    {
+        get
+        {
+            var dir = Path.Combine(AppContext.BaseDirectory, "profiles");
+            return Directory.Exists(dir)
+                ? Directory.GetFiles(dir, "*.json").Select(p => Path.GetFileNameWithoutExtension(p)!)
+                : Enumerable.Empty<string>();
+        }
+    }
+
     static string Resolve(string folder, string id) => Path.Combine(AppContext.BaseDirectory, folder, id + ".json");
 }
