@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using Am4ever.App.Wizard;
+using Am4ever.Core.Build;
 using Am4ever.Tests.Rom;
 
 namespace Am4ever.Tests.Wizard;
@@ -69,6 +70,31 @@ public class WizardFlowTests
         var o = w.Build(outPath);
         Assert.False(o.Ok);
         Assert.False(File.Exists(outPath));                    // no image, no "build anyway"
+    }
+
+    [Fact] public void ProfileSummary_ShowsModelAndUntested()
+    {
+        var s = WizardFlow.ProfileSummary(BundledData.LoadProfile("hp-285-g3-8434"));
+        Assert.Contains("8434", s);
+        Assert.Contains("untested", s, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [RomFact] public void Build_ThenChangingInput_ResetsBuildGate()
+    {
+        var w = new WizardFlow();
+        w.SetDump(File.ReadAllBytes(TestRoms.HpF65!)); w.Next();
+        w.SelectProfile(w.MatchingProfiles()[0]); w.Next();
+        w.SetDonor(File.ReadAllBytes(TestRoms.AsrockP1043!)); w.Next();
+        w.SetIdentity(IdentityChoice.Generic); w.Next();                 // at Build step
+        var outPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".bin");
+        try
+        {
+            Assert.True(w.Build(outPath).Ok);
+            Assert.True(w.CanAdvance(out _));                            // Build gate open
+            w.SetDump(File.ReadAllBytes(TestRoms.HpF65!));               // inputs changed -> stale
+            Assert.False(w.CanAdvance(out _));                          // gate must close again
+        }
+        finally { File.Delete(outPath); if (File.Exists(outPath + ".report.md")) File.Delete(outPath + ".report.md"); }
     }
 
     [Fact] public void FlashChecklist_MentionsVoltageAndBackup()

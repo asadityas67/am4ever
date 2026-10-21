@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using Am4ever.Core.Profile;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 
 namespace Am4ever.App.Wizard;
@@ -26,7 +28,15 @@ public sealed class WizardView : UserControl
     {
         _flow = flow;
         _action.Click += async (_, _) => await OnAction();
-        _profiles.SelectionChanged += (_, _) => { if (_profiles.SelectedItem is BoardProfile p) { _flow.SelectProfile(p); Refresh(); } };
+        _profiles.ItemTemplate = new FuncDataTemplate<BoardProfile>((p, _) =>
+            new TextBlock { Text = WizardFlow.ProfileSummary(p), TextWrapping = TextWrapping.Wrap });
+        _profiles.SelectionChanged += (_, _) =>
+        {
+            if (_profiles.SelectedItem is not BoardProfile p) return;
+            try { _flow.SelectProfile(p); }
+            catch (Exception ex) { Reason.Text = ex.Message; }
+            Refresh();
+        };
         BackButton.Click += (_, _) => { _flow.Back(); Refresh(); };
         NextButton.Click += (_, _) => { _flow.Next(); Refresh(); };
 
@@ -72,7 +82,7 @@ public sealed class WizardView : UserControl
         WizardStep.Profile => "Pick the profile for your board. Review its tested CPUs and any inferred/untested items before continuing.",
         WizardStep.Donor => "Download the exact donor BIOS named by the profile and pick it here; its SHA-256 is verified.",
         WizardStep.Identity => _flow.Identity == IdentityChoice.FromDmiFile ? "Using your machine-data file." : "Using the generic board identity. You can load a machine-data file instead.",
-        WizardStep.Build => "Build the modded image and run every check. If a check fails the image is not written.",
+        WizardStep.Build => "Build the modded image and run the structure, checksum and round-trip checks. If a check fails the image is not written.",
         _ => FlashChecklist.Text,
     };
 
@@ -80,25 +90,36 @@ public sealed class WizardView : UserControl
     {
         var top = TopLevel.GetTopLevel(this);
         if (top is null) return;                      // not in a window (e.g. headless): nothing to do
-        if (_flow.Step == WizardStep.Build)
+        try
         {
-            var save = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions { SuggestedFileName = "modded.bin" });
-            if (save is null) return;
-            var outcome = _flow.Build(save.Path.LocalPath);
-            Reason.Text = outcome.Ok ? $"Built. Report: {outcome.ReportPath}" : $"Build failed: {outcome.Error}";
+            if (_flow.Step == WizardStep.Build)
+            {
+                var save = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions { SuggestedFileName = "modded.bin" });
+                if (save is null) return;
+                Reason.Text = "Building and checking… this takes a few seconds.";
+                _action.IsEnabled = false;
+                var outcome = await Task.Run(() => _flow.Build(save.Path.LocalPath));   // off the UI thread
+                _action.IsEnabled = true;
+                Reason.Text = outcome.Ok ? $"Built. Report saved: {outcome.ReportPath}" : $"Build failed (no image written): {outcome.Error}";
+                Refresh();
+                return;
+            }
+            var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { AllowMultiple = false });
+            if (files.Count == 0) return;
+            var bytes = await ReadAll(files[0]);
+            switch (_flow.Step)
+            {
+                case WizardStep.Dump: _flow.SetDump(bytes); break;
+                case WizardStep.Donor: _flow.SetDonor(bytes); break;
+                case WizardStep.Identity: _flow.SetIdentity(IdentityChoice.FromDmiFile, bytes); break;
+            }
             Refresh();
-            return;
         }
-        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { AllowMultiple = false });
-        if (files.Count == 0) return;
-        var bytes = await ReadAll(files[0]);
-        switch (_flow.Step)
+        catch (Exception ex)   // a bad file / DMI / adapter must show a message, never crash the wizard
         {
-            case WizardStep.Dump: _flow.SetDump(bytes); break;
-            case WizardStep.Donor: _flow.SetDonor(bytes); break;
-            case WizardStep.Identity: _flow.SetIdentity(IdentityChoice.FromDmiFile, bytes); break;
+            _action.IsEnabled = true;
+            Reason.Text = ex.Message;
         }
-        Refresh();
     }
 
     static async Task<byte[]> ReadAll(IStorageFile file)

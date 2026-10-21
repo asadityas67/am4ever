@@ -40,9 +40,21 @@ public sealed class WizardFlow
     {
         SelectedProfile = profile;
         _adapter = BundledData.LoadAdapter(profile.Donor.Adapter);
+        _built = false;
     }
 
-    public void SetDonor(byte[] donor) => _donor = donor;
+    public void SetDonor(byte[] donor) { _donor = donor; _built = false; }
+
+    /// <summary>A plain-words summary of a profile for the step-2 list: model, authors, and untested/inferred items (§3/§6).</summary>
+    public static string ProfileSummary(BoardProfile p)
+    {
+        var lines = new List<string> { $"{p.Board.Vendor} {p.Board.Model} ({p.Board.BoardId})" };
+        if (p.Authors.Count > 0) lines.Add("by " + string.Join(", ", p.Authors));
+        var tested = p.Status.Tested ?? Array.Empty<TestedEntry>();
+        lines.Add(tested.Count > 0 ? "Tested: " + string.Join("; ", tested.Select(t => $"{t.Cpu} ({t.Result})")) : "Tested: none yet");
+        foreach (var u in p.Status.Untested ?? Array.Empty<string>()) lines.Add("⚠ untested/inferred: " + u);
+        return string.Join("\n", lines);
+    }
 
     public IdentityChoice Identity { get; private set; } = IdentityChoice.Generic;
     DmiIdentity? _dmi;
@@ -52,6 +64,7 @@ public sealed class WizardFlow
     {
         Identity = choice;
         _dmi = choice == IdentityChoice.FromDmiFile && dmiJson is not null ? DmiIdentity.FromJson(dmiJson) : null;
+        _built = false;
     }
 
     /// <summary>Build the modded image, writing it and its report only on success (no override on failure).</summary>
@@ -68,7 +81,7 @@ public sealed class WizardFlow
             _built = true;
             return new BuildOutcome(true, null, reportPath);
         }
-        catch (Exception e) when (e is RomFormatException or RomEditException)
+        catch (Exception e) when (e is RomFormatException or RomEditException or IOException or UnauthorizedAccessException)
         {
             return new BuildOutcome(false, e.Message, null);
         }
@@ -78,6 +91,7 @@ public sealed class WizardFlow
     {
         PrimaryDump = primary;
         SecondDump = secondRead;
+        _built = false;                 // inputs changed: any prior build is stale
     }
 
     /// <summary>Whether the current step's inputs are complete and valid; <paramref name="reason"/> explains a block.</summary>
