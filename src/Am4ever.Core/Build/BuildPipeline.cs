@@ -79,9 +79,9 @@ public static class BuildPipeline
 
         RepackBootVolume(work, vol, header, pei, report);
 
-        // --- DXE phase: SMBIOS identity ---
-        if (profile.Operations.Any(o => o.Op == "smbios_identity"))
-            ApplySmbios(work, vol, profile, dmiOverride, report);
+        // --- DXE phase: SMBIOS identity and/or EC fan driver, one recompression ---
+        if (profile.Operations.Any(o => o.Op is "smbios_identity" or "add_ec_init"))
+            ApplyDxe(work, vol, profile, dmiOverride, report);
 
         return new BuildResult(work, report);
     }
@@ -131,7 +131,7 @@ public static class BuildPipeline
         report.Add($"boot volume recompressed: 0x{oldFileSize:X} -> 0x{newFileSize:X} bytes");
     }
 
-    static void ApplySmbios(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report)
+    static void ApplyDxe(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report)
     {
         var dmi = dmiOverride is null ? DmiIdentity.HpDefault : DmiIdentity.HpDefault.Merge(dmiOverride);
         var dxeFv = new FirmwareVolume(work, vol.DxeFvOffset);
@@ -142,19 +142,47 @@ public static class BuildPipeline
         var dec = GuidedSection.DecompressLzmaGuided(work, lzmaSection);
         var fvImage = SectionWalker.Walk(dec, 0, dec.Length).FirstOrDefault(s => s.Type == SectionType.FirmwareVolumeImage)
             ?? throw new RomFormatException("decompressed DXE blob has no firmware-volume-image section");
-        var innerFv = new FirmwareVolume(dec, fvImage.DataOffset);
-        var (start, end) = SmbiosTable.LocateStaticData(innerFv);
-        var smbiosFile = innerFv.FindByGuid(SmbiosFileGuid);
 
-        var ctx = new BuildContext(new(), new()) { DxeVolume = dec, SmbiosStart = start, SmbiosEnd = end, Dmi = dmi };
-        report.Section("DXE volume (SMBIOS identity)");
-        var op = OperationFactory.Create(profile.Operations.First(o => o.Op == "smbios_identity"));
-        op.Check(ctx);
-        report.Add(op.Apply(ctx));
-
-        new FfsFile(dec, smbiosFile.Offset).FixChecksums(dec);
+        report.Section("DXE volume");
+        report.Add(ApplyDxeOperations(dec, fvImage.DataOffset, profile, dmi));
         GuidedSection.ReplaceLzmaGuided(work, dxeFile, lzmaSection, dec);
         report.Add("DXE volume recompressed");
+    }
+
+    /// <summary>
+    /// Run the DXE-phase operations (smbios_identity, add_ec_init) on an already-decompressed DXE blob,
+    /// in profile order, and return their report lines. The SMBIOS static-data location is resolved only
+    /// when a smbios_identity operation is present, so add_ec_init can run on a board with no AMI SMBIOS file.
+    /// </summary>
+    public static IReadOnlyList<string> ApplyDxeOperations(byte[] dec, int innerFvOffset, BoardProfile profile, DmiIdentity dmi)
+    {
+        var innerFv = new FirmwareVolume(dec, innerFvOffset);
+        int start = 0, end = 0;
+        FfsFile? smbiosFile = null;
+        if (profile.Operations.Any(o => o.Op == "smbios_identity"))
+        {
+            (start, end) = SmbiosTable.LocateStaticData(innerFv);
+            smbiosFile = innerFv.FindByGuid(SmbiosFileGuid);
+        }
+
+        var ctx = new BuildContext(new(), new())
+        {
+            DxeVolume = dec,
+            DxeInnerFvOffset = innerFvOffset,
+            SmbiosStart = start,
+            SmbiosEnd = end,
+            Dmi = dmi,
+        };
+        var lines = new List<string>();
+        foreach (var spec in profile.Operations.Where(o => o.Op is "smbios_identity" or "add_ec_init"))
+        {
+            var op = OperationFactory.Create(spec);
+            op.Check(ctx);
+            lines.AddRange(op.Apply(ctx));
+            if (spec.Op == "smbios_identity")
+                new FfsFile(dec, smbiosFile!.Offset).FixChecksums(dec);   // editing the static data disturbs the file checksum
+        }
+        return lines;
     }
 
     static Dictionary<string, (int Start, int End, int FileOffset)> SectionMap(FirmwareVolume fv, IReadOnlyList<ModuleEntry> modules)

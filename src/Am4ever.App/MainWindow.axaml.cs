@@ -24,6 +24,12 @@ public partial class MainWindow : Window
         ThemeDarkItem.Click += (_, _) => _themes.SetMode(ThemeMode.Dark);
         _themes.EffectiveChanged += (_, _) => SyncThemeMenu();
         SyncThemeMenu();
+
+        var wizard = new Wizard.WizardView(new Wizard.WizardFlow());
+        var lab = new Lab.BoardLabView();
+        WizardHost.Content = wizard;
+        ModeWizardItem.Click += (_, _) => WizardHost.Content = wizard;
+        ModeBoardLabItem.Click += (_, _) => WizardHost.Content = lab;
     }
 
     void SyncThemeMenu()

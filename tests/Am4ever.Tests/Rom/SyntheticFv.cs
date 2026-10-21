@@ -79,6 +79,42 @@ public static class SyntheticFv
         return buf;
     }
 
+    /// <summary>A complete, valid FFS raw file (24-byte header, type 0x19, checksums fixed).</summary>
+    public static byte[] RawFile(Guid guid, byte[] body)
+    {
+        int fileSize = 24 + body.Length;
+        var f = new byte[fileSize];
+        guid.ToByteArray().CopyTo(f, 0);
+        f[18] = SectionType.Raw;
+        f[19] = 0;
+        Bin.W24(f, 20, (uint)fileSize);
+        f[23] = 0xF8;
+        body.CopyTo(f, 24);
+        f[16] = 0; f[17] = 0;
+        byte state = f[23]; f[23] = 0;
+        f[16] = (byte)((0x100 - Sum(f, 0, 24)) & 0xFF);
+        f[17] = 0xAA;
+        f[23] = state;
+        return f;
+    }
+
+    /// <summary>Wrap an already-built FFS file in a minimal volume so it can be parsed; returns the file offset.</summary>
+    public static byte[] WrapFile(byte[] ffs, out int fileOffset)
+    {
+        int first = (FvHeaderLength + 7) & ~7;
+        int total = first + ((ffs.Length + 7) & ~7) + 0x100;
+        var buf = new byte[total];
+        Ffs2.ToByteArray().CopyTo(buf, 16);
+        Bin.W64(buf, 32, (ulong)total);
+        Bin.W32(buf, 40, 0x4856465F);            // _ F V H
+        Bin.W16(buf, 48, FvHeaderLength);
+        buf[55] = 2;
+        ffs.CopyTo(buf, first);
+        for (int i = first + ffs.Length; i < total; i++) buf[i] = 0xFF;
+        fileOffset = first;
+        return buf;
+    }
+
     public static void CorruptFirstFileSizeToZero(byte[] buf)
     {
         int o = (FvHeaderLength + 7) & ~7;

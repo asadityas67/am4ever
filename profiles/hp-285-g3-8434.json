@@ -100,7 +100,8 @@
       "confidence": "inferred", "evidence": "HP Raven display block == ASRock Raven block, so same physical wiring" },
     { "op": "verb_table", "family": "RN", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
 
-    { "op": "smbios_identity", "notes": "generic HP identity, or per-machine data when the user supplies --dmi" }
+    { "op": "smbios_identity", "notes": "generic HP identity, or per-machine data when the user supplies --dmi" },
+    { "op": "add_ec_init", "notes": "HP EC fan hand-off driver (HpEcFanInit): fans run their curve, not full speed" }
   ],
   "identity": { "extractor": "hp-8434" }
 }

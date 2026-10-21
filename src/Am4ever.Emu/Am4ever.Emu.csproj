@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Am4ever.Emu</RootNamespace>
+  </PropertyGroup>
+</Project>
