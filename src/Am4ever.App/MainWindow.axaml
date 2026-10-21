@@ -23,9 +23,8 @@
     <Border DockPanel.Dock="Bottom" Classes="statusbar">
       <TextBlock x:Name="StatusText" Text="Ready" />
     </Border>
-    <HeaderedContentControl Classes="groupbox" Header="Getting started" Margin="12"
-                            VerticalAlignment="Top">
-      <TextBlock Text="The beginner wizard and Board Lab arrive in later milestones." TextWrapping="Wrap" />
-    </HeaderedContentControl>
+    <ScrollViewer>
+      <ContentControl x:Name="WizardHost" />
+    </ScrollViewer>
   </DockPanel>
 </Window>
