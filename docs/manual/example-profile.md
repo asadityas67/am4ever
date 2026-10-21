@@ -1,0 +1,153 @@
+# Worked example — the HP 285 G3 profile
+
+This is the project's reference profile in full: `profiles/hp-285-g3-8434.json`. It is the complete
+HP 285 G3 MT → ASRock AB350M Pro4 P10.43 port, and the build it produces is verified byte-for-byte
+against the hand-made reference image by the core's acceptance test. Read it alongside
+[cli.md](cli.md) (what each `op` does) and [reference.md](reference.md) (the structures they edit).
+Nothing here is firmware — it is a list of *operations*; the actual table bytes come from your own
+dump at build time.
+
+Build with it:
+```
+am4ever build your-dump.bin asrock-ab350m-pro4-p10.43.bin --profile hp-285-g3-8434 --out modded.bin --i-understand-the-risk
+```
+
+## The file
+```json
+{
+  "schema": "am4ever.profile/1",
+  "board": {
+    "vendor": "HP",
+    "model": "HP 285 G3 MT",
+    "board_id": "8434",
+    "match": { "ssid": "8434", "bios_versions": ["F.65"], "rom_size": 16777216 }
+  },
+  "donor": {
+    "adapter": "asrock-ab350m-pro4-p10.43",
+    "sha256": "1970ffd87cf68ec3b90504920f8ccda387bef39d02bd59acbaa1ac369e22ff0c"
+  },
+  "authors": ["am4ever contributors"],
+  "status": {
+    "tested": [],
+    "untested": [
+      "No hardware test yet (awaiting the maintainer's CH341A programmer).",
+      "Renoir/Cezanne display outputs are inferred (HP never shipped those families)."
+    ]
+  },
+  "oem_pei_fv_offset": 12582912,
+  "oem_modules": [
+    { "name": "AmdCpmOemInitPeim",   "family": "ZP",  "index": 0 },
+    { "name": "AmdCpmOemInitPeim",   "family": "MTS", "index": 0 },
+    { "name": "AmdCpmOemRvInitPeim", "family": "RV",  "index": 0 },
+    { "name": "AmdCpmOemRvInitPeim", "family": "RN",  "index": 0 }
+  ],
+  "operations": [
+    { "op": "apcb_check", "notes": "OEM and donor DRAM SPD maps must match" },
+
+    { "op": "neutralise_override", "family": "ZP", "offset": 726, "expected": "81ecc4000000" },
+    { "op": "port_gpio", "family": "ZP", "platform_mask": 16776960, "hp_platform_mask": 16776960 },
+    { "op": "port_gpio", "family": "ZP", "platform_mask": 255, "hp_platform_mask": 255 },
+    { "op": "port_gevent", "family": "ZP" },
+    { "op": "empty_tables", "family": "ZP", "tables": [
+      { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
+      { "tag": "$A14", "term": "ff" }, { "tag": "$A15", "term": "ff" },
+      { "tag": "$A17", "term": "ff" }, { "tag": "$A19", "term": "ff000000" } ] },
+    { "op": "dxio_layout", "family": "ZP", "platform_mask": 12566272, "dxio": [
+      { "desc": 2, "lanes": [0, 0], "clk_req": 1 },
+      { "desc": 4, "template": 2, "engine": 1, "lanes": [1, 1], "device": 1, "function": 2, "clk_req": 2 },
+      { "desc": 3, "engine": 3 } ] },
+    { "op": "verb_table", "family": "ZP", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
+
+    { "op": "neutralise_override", "family": "MTS", "offset": 836, "expected": "8b018d94244cffffff" },
+    { "op": "port_gpio", "family": "MTS", "platform_mask": 0, "hp_platform_mask": 16776960,
+      "merge": "family_delta", "base_family": "ZP", "base_platform_mask": 16776960 },
+    { "op": "port_gevent", "family": "MTS" },
+    { "op": "empty_tables", "family": "MTS", "tables": [
+      { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
+      { "tag": "$A14", "term": "ff" }, { "tag": "$A15", "term": "ff" },
+      { "tag": "$A17", "term": "ff" }, { "tag": "$A19", "term": "ff000000" } ] },
+    { "op": "dxio_layout", "family": "MTS", "platform_mask": 0,
+      "confidence": "inferred", "evidence": "Matisse/Vermeer GPP numbering is mirrored vs Pinnacle; HP lanes 0/1/2-3 map to 7/6/4-5",
+      "dxio": [
+      { "desc": 0, "lanes": [16, 31] },
+      { "desc": 1, "engine": 0 },
+      { "desc": 2, "lanes": [7, 7], "clk_req": 1 },
+      { "desc": 4, "template": 2, "engine": 1, "lanes": [6, 6], "device": 1, "function": 2, "clk_req": 2 },
+      { "desc": 3, "engine": 3 } ] },
+    { "op": "verb_table", "family": "MTS", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
+
+    { "op": "neutralise_override", "family": "RV", "offset": 916, "expected": "81ecc0000000" },
+    { "op": "port_gpio", "family": "RV", "platform_mask": 2143223808, "hp_platform_mask": 2143223808 },
+    { "op": "port_gevent", "family": "RV" },
+    { "op": "empty_tables", "family": "RV", "tables": [
+      { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
+      { "tag": "$A14", "term": "ff" }, { "tag": "$A15", "term": "ff" },
+      { "tag": "$A17", "term": "ff" }, { "tag": "$A19", "term": "ff000000" } ] },
+    { "op": "dxio_layout", "family": "RV", "platform_mask": 12517376, "dxio": [
+      { "desc": 1, "lanes": [0, 0], "clk_req": 1 },
+      { "desc": 4, "template": 1, "engine": 1, "lanes": [1, 1], "device": 1, "function": 5, "clk_req": 2 },
+      { "desc": 3, "engine": 3 } ] },
+    { "op": "dxio_layout", "family": "RV", "platform_mask": 2130706432,
+      "confidence": "inferred", "evidence": "Raven2/Athlon routes the x4 GFX link on lanes 12-15",
+      "dxio": [
+      { "desc": 0, "lanes": [12, 15] },
+      { "desc": 1, "lanes": [0, 0], "clk_req": 1 },
+      { "desc": 4, "template": 1, "engine": 1, "lanes": [1, 1], "device": 1, "function": 5, "clk_req": 2 },
+      { "desc": 5, "lanes": [8, 11] } ] },
+    { "op": "ddi_layout", "family": "RV", "platform_mask": 12517376, "ddi_from_platform_mask": 12517376,
+      "confidence": "inferred", "evidence": "copied from HP Raven display block" },
+    { "op": "ddi_layout", "family": "RV", "platform_mask": 2130706432, "ddi_from_platform_mask": 2130706432,
+      "confidence": "inferred", "evidence": "copied from HP Raven2/Athlon display block" },
+    { "op": "verb_table", "family": "RV", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
+
+    { "op": "neutralise_override", "family": "RN", "offset": 876, "expected": "8b018d942460ffffff" },
+    { "op": "port_gpio", "family": "RN", "platform_mask": 0, "hp_platform_mask": 2143223808,
+      "merge": "family_delta", "base_family": "RV", "base_platform_mask": 2143223808 },
+    { "op": "port_gevent", "family": "RN" },
+    { "op": "empty_tables", "family": "RN", "tables": [
+      { "tag": "$A12", "term": "ff00" }, { "tag": "$A13", "term": "ff" },
+      { "tag": "$A14", "term": "ff" }, { "tag": "$A15", "term": "ff" },
+      { "tag": "$A17", "term": "ff" }, { "tag": "$A19", "term": "ff000000" } ] },
+    { "op": "dxio_layout", "family": "RN", "platform_mask": 0, "dxio": [
+      { "desc": 2, "lanes": [0, 0], "clk_req": 1 },
+      { "desc": 5, "template": 2, "engine": 1, "lanes": [1, 1], "device": 2, "function": 3, "clk_req": 2 },
+      { "desc": 4, "engine": 3 } ] },
+    { "op": "ddi_layout", "family": "RN", "platform_mask": 0, "ddi_keep": true,
+      "confidence": "inferred", "evidence": "HP Raven display block == ASRock Raven block, so same physical wiring" },
+    { "op": "verb_table", "family": "RN", "old_codecs": [283904153, 283904152], "new_codec": 283903601 },
+
+    { "op": "smbios_identity", "notes": "generic HP identity, or per-machine data when the user supplies --dmi" },
+    { "op": "add_ec_init", "notes": "HP EC fan hand-off driver (HpEcFanInit): fans run their curve, not full speed" }
+  ],
+  "identity": { "extractor": "hp-8434" }
+}
+```
+
+## Reading it
+
+**Header.** `schema` pins the format. `board.match` is how the wizard offers this profile for a dump:
+the PCI subsystem id `8434`, the stock BIOS version `F.65`, and the 16 MiB ROM size. `donor` names
+the adapter and the **exact** donor SHA-256 the build verifies against — a different donor file is
+rejected, not patched blindly.
+
+**`status`.** Honest provenance. `tested` is empty (no hardware run yet); each `untested` line is a
+caveat the wizard and the build report show the user. This is the "⚠ untested / inferred" copy a
+beginner reads before building.
+
+**`oem_pei_fv_offset` + `oem_modules`.** Where the OEM PEI volume sits in the dump, and the four CPM
+OEM PEIMs that carry the board config, each tagged with the CPU family it serves:
+`ZP` Pinnacle/Summit, `MTS` Matisse/Vermeer, `RV` Raven/Picasso, `RN` Renoir/Cezanne. Everything in
+`operations` is applied per family against these.
+
+**`operations`.** Runs top to bottom. `apcb_check` first (abort if the DRAM maps differ), then one
+block per family that always follows the same shape — neutralise the donor's override routine, port
+GPIO + GEVENT, empty the secondary tables, set the DXIO lanes (and DDI display block where the family
+has outputs), retarget the audio codec — and finally the two whole-image ops: `smbios_identity` and
+`add_ec_init`. The `MTS` and `RN` GPIO use `"merge": "family_delta"` to layer onto the `ZP`/`RV`
+tables rather than repeat them. Six operations are marked `"confidence": "inferred"` with an
+`evidence` note — the Matisse/Vermeer and Renoir/Cezanne lane and display mappings, which HP never
+shipped and so could not be read from a real dump. Those are the lines to verify first on hardware.
+
+The decimal platform masks (`16776960` = `0xFFFF00`, `12566272` = `0xBFBF00`, `2143223808` =
+`0x7FBF0000`, …) and codec ids (`283903601` = `0x10EC0671`, the ALC671) are listed in
+[reference.md](reference.md#cheat-sheet).
