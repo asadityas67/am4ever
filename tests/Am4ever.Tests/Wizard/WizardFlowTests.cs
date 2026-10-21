@@ -58,6 +58,43 @@ public class WizardFlowTests
         Assert.True(w.CanAdvance(out _));
     }
 
+    [Fact] public void Step4_GenericIdentity_IsDefault() => Assert.Equal(IdentityChoice.Generic, new WizardFlow().Identity);
+
+    [Fact] public void Step5_BuildFailure_NoImageNoOverride()
+    {
+        var w = new WizardFlow(); w.SetDump(Rom16());
+        w.SelectProfile(w.MatchingProfiles()[0]);
+        w.SetDonor(Rom16());                                   // wrong donor: hash check fails first
+        var outPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".bin");
+        var o = w.Build(outPath);
+        Assert.False(o.Ok);
+        Assert.False(File.Exists(outPath));                    // no image, no "build anyway"
+    }
+
+    [Fact] public void FlashChecklist_MentionsVoltageAndBackup()
+    {
+        Assert.Contains("3.3", FlashChecklist.Text);
+        Assert.Contains("back up", FlashChecklist.Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [RomFact] public void Step5_RealBuild_WritesImageAndReport()
+    {
+        var w = new WizardFlow();
+        w.SetDump(File.ReadAllBytes(TestRoms.HpF65!)); w.Next();
+        w.SelectProfile(w.MatchingProfiles()[0]); w.Next();
+        w.SetDonor(File.ReadAllBytes(TestRoms.AsrockP1043!)); w.Next();
+        w.SetIdentity(IdentityChoice.Generic); w.Next();
+        var outPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".bin");
+        try
+        {
+            var o = w.Build(outPath);
+            Assert.True(o.Ok, o.Error);
+            Assert.Equal(16 * 1024 * 1024, new FileInfo(outPath).Length);
+            Assert.True(File.Exists(o.ReportPath!));
+        }
+        finally { File.Delete(outPath); if (File.Exists(outPath + ".report.md")) File.Delete(outPath + ".report.md"); }
+    }
+
     [Fact] public void Steps_InOrder() =>
         Assert.Equal(new[] { WizardStep.Dump, WizardStep.Profile, WizardStep.Donor, WizardStep.Identity, WizardStep.Build, WizardStep.Flash },
             Enum.GetValues<WizardStep>());

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using System.Security.Cryptography;
+using Am4ever.Core.Board.Smbios;
 using Am4ever.Core.Build;
 using Am4ever.Core.Profile;
 using Am4ever.Core.Rom;
@@ -42,6 +43,36 @@ public sealed class WizardFlow
     }
 
     public void SetDonor(byte[] donor) => _donor = donor;
+
+    public IdentityChoice Identity { get; private set; } = IdentityChoice.Generic;
+    DmiIdentity? _dmi;
+    bool _built;
+
+    public void SetIdentity(IdentityChoice choice, byte[]? dmiJson = null)
+    {
+        Identity = choice;
+        _dmi = choice == IdentityChoice.FromDmiFile && dmiJson is not null ? DmiIdentity.FromJson(dmiJson) : null;
+    }
+
+    /// <summary>Build the modded image, writing it and its report only on success (no override on failure).</summary>
+    public BuildOutcome Build(string outPath)
+    {
+        if (PrimaryDump is null || _donor is null || SelectedProfile is null || _adapter is null)
+            return new BuildOutcome(false, "the wizard is missing an input (dump, profile or donor)", null);
+        try
+        {
+            var result = BuildPipeline.Build(_donor, PrimaryDump, SelectedProfile, _adapter, _dmi);
+            File.WriteAllBytes(outPath, result.Image);
+            var reportPath = outPath + ".report.md";
+            File.WriteAllText(reportPath, result.Report.ToMarkdown());
+            _built = true;
+            return new BuildOutcome(true, null, reportPath);
+        }
+        catch (Exception e) when (e is RomFormatException or RomEditException)
+        {
+            return new BuildOutcome(false, e.Message, null);
+        }
+    }
 
     public void SetDump(byte[] primary, byte[]? secondRead = null)
     {
@@ -112,5 +143,14 @@ public sealed class WizardFlow
         return true;
     }
     bool CanAdvanceIdentity(out string? reason) { reason = null; return true; }
-    bool CanAdvanceBuild(out string? reason) { reason = "build not completed"; return false; }
+    bool CanAdvanceBuild(out string? reason)
+    {
+        if (!_built) { reason = "the build and its checks have not completed successfully"; return false; }
+        reason = null; return true;
+    }
 }
+
+public enum IdentityChoice { Generic, FromDmiFile }
+
+/// <summary>The result of the wizard's build step.</summary>
+public sealed record BuildOutcome(bool Ok, string? Error, string? ReportPath);
