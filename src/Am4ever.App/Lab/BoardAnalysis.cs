@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using System.Text;
 using Am4ever.Core.Board.Cpm;
+using Am4ever.Emu;
 using Am4ever.Core.Rom;
 using Am4ever.Core.Rom.Amd;
 using Am4ever.Core.Rom.Compression;
@@ -10,6 +11,7 @@ namespace Am4ever.App.Lab;
 
 public sealed record RomSummary(long Size, int AmdDirectories, string? Agesa);
 public sealed record OemModule(string Name, Guid Guid);
+public sealed record Diff(bool SameLength, int FirstDiff, int DiffCount);
 
 /// <summary>
 /// Read-only expert analysis of an OEM or donor ROM: ROM/AGESA summary, the PEI module list, and each
@@ -56,6 +58,32 @@ public sealed class BoardAnalysis
         if (img is null) return Array.Empty<string>();
         return CpmImage.Tables(img)
             .Select(t => t.PlatformMask != 0 ? $"{t.Tag}/0x{t.PlatformMask:X}" : t.Tag).ToList();
+    }
+
+    /// <summary>Byte-compare this ROM's module against another ROM's same-named module.</summary>
+    public Diff CompareModule(BoardAnalysis other, string moduleName, int index)
+    {
+        var a = ImageSection(moduleName, index);
+        var b = other.ImageSection(moduleName, index);
+        if (a is null || b is null) return new Diff(false, -1, -1);     // module missing in one ROM
+        int min = Math.Min(a.Length, b.Length), first = -1, count = 0;
+        for (int i = 0; i < min; i++)
+            if (a[i] != b[i]) { if (first < 0) first = i; count++; }
+        bool same = a.Length == b.Length;
+        count += Math.Abs(a.Length - b.Length);
+        if (!same && first < 0) first = min;                           // identical prefix, differ in length
+        return new Diff(same, first, count);
+    }
+
+    /// <summary>Whether the native emulator host is available to run a module.</summary>
+    public static bool EmulatorAvailable => PeiEmulator.HostPath is not null;
+
+    /// <summary>Run a module in the emulator under a CPU family, or null if the host is unavailable / the module is absent.</summary>
+    public PeiResult? Emulate(string moduleName, int index, uint cpuid, int? overrideOffset = null)
+    {
+        if (!EmulatorAvailable) return null;
+        var img = ImageSection(moduleName, index);
+        return img is null ? null : PeiEmulator.Run(img, cpuid, overrideOffset);
     }
 
     internal byte[]? ImageSection(string moduleName, int index)
