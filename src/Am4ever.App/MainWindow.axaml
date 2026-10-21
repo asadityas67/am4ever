@@ -10,6 +10,9 @@
         <MenuItem x:Name="ExitItem" Header="E_xit" />
       </MenuItem>
       <MenuItem Header="_View">
+        <MenuItem x:Name="ModeWizardItem" Header="_Wizard (beginner)" ToggleType="Radio" GroupName="mode" IsChecked="True" />
+        <MenuItem x:Name="ModeBoardLabItem" Header="_Board Lab (expert)" ToggleType="Radio" GroupName="mode" />
+        <Separator />
         <MenuItem Header="_Theme">
           <MenuItem x:Name="ThemeFollowItem" Header="_Follow system" ToggleType="Radio" GroupName="theme" />
           <MenuItem x:Name="ThemeLightItem" Header="_Light" ToggleType="Radio" GroupName="theme" />
