@@ -19,6 +19,7 @@ public static class OperationFactory
         "ddi_layout" => new DdiLayoutOp(spec),
         "verb_table" => new VerbTableOp(spec),
         "smbios_identity" => new SmbiosIdentityOp(spec),
+        "add_ec_init" => new AddEcInitOp(spec),
         "apcb_check" => new ApcbCheckOp(spec),
         _ => throw new RomFormatException($"unknown operation '{spec.Op}'"),
     };

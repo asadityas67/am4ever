@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using Am4ever.Core.Board;
 using Am4ever.Core.Board.Cpm;
+using Am4ever.Core.Board.Ec;
 using Am4ever.Core.Board.Smbios;
 using Am4ever.Core.Profile;
 using Am4ever.Core.Rom;
+using Am4ever.Core.Rom.Fv;
 
 namespace Am4ever.Core.Build.Operations;
 
@@ -204,6 +206,27 @@ public sealed class SmbiosIdentityOp(OperationSpec spec) : BoardOperation(spec)
     {
         SmbiosTable.ApplyIdentity(ctx.DxeVolume!, ctx.SmbiosStart, ctx.SmbiosEnd, ctx.Dmi ?? DmiIdentity.HpDefault, out var report);
         return report.Prepend("SMBIOS identity:").ToList();
+    }
+}
+
+/// <summary>Add the HP EC fan hand-off driver to the DXE volume's free space.</summary>
+public sealed class AddEcInitOp(OperationSpec spec) : BoardOperation(spec)
+{
+    public override void Check(BuildContext ctx)
+    {
+        if (ctx.DxeVolume is null)
+            throw new RomFormatException("add_ec_init: no DXE volume in the build context");
+        var fv = new FirmwareVolume(ctx.DxeVolume, ctx.DxeInnerFvOffset);
+        if (fv.Files().Any(f => f.Guid == EcFanDriver.FileGuid))
+            throw new RomEditException("add_ec_init: the EC fan driver is already present in the DXE volume");
+    }
+
+    public override IReadOnlyList<string> Apply(BuildContext ctx)
+    {
+        var driver = EcFanDriver.Build();
+        var fv = new FirmwareVolume(ctx.DxeVolume!, ctx.DxeInnerFvOffset);
+        int at = FvEditor.InsertFile(ctx.DxeVolume!, fv, driver);
+        return new[] { $"EC fan driver ({driver.Length} bytes) added at +0x{at - ctx.DxeInnerFvOffset:X} in the DXE volume" };
     }
 }
 

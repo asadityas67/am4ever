@@ -79,9 +79,9 @@ public static class BuildPipeline
 
         RepackBootVolume(work, vol, header, pei, report);
 
-        // --- DXE phase: SMBIOS identity ---
-        if (profile.Operations.Any(o => o.Op == "smbios_identity"))
-            ApplySmbios(work, vol, profile, dmiOverride, report);
+        // --- DXE phase: SMBIOS identity and/or EC fan driver, one recompression ---
+        if (profile.Operations.Any(o => o.Op is "smbios_identity" or "add_ec_init"))
+            ApplyDxe(work, vol, profile, dmiOverride, report);
 
         return new BuildResult(work, report);
     }
@@ -131,7 +131,7 @@ public static class BuildPipeline
         report.Add($"boot volume recompressed: 0x{oldFileSize:X} -> 0x{newFileSize:X} bytes");
     }
 
-    static void ApplySmbios(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report)
+    static void ApplyDxe(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report)
     {
         var dmi = dmiOverride is null ? DmiIdentity.HpDefault : DmiIdentity.HpDefault.Merge(dmiOverride);
         var dxeFv = new FirmwareVolume(work, vol.DxeFvOffset);
@@ -142,17 +142,29 @@ public static class BuildPipeline
         var dec = GuidedSection.DecompressLzmaGuided(work, lzmaSection);
         var fvImage = SectionWalker.Walk(dec, 0, dec.Length).FirstOrDefault(s => s.Type == SectionType.FirmwareVolumeImage)
             ?? throw new RomFormatException("decompressed DXE blob has no firmware-volume-image section");
-        var innerFv = new FirmwareVolume(dec, fvImage.DataOffset);
+        int innerFvOffset = fvImage.DataOffset;
+        var innerFv = new FirmwareVolume(dec, innerFvOffset);
         var (start, end) = SmbiosTable.LocateStaticData(innerFv);
         var smbiosFile = innerFv.FindByGuid(SmbiosFileGuid);
 
-        var ctx = new BuildContext(new(), new()) { DxeVolume = dec, SmbiosStart = start, SmbiosEnd = end, Dmi = dmi };
-        report.Section("DXE volume (SMBIOS identity)");
-        var op = OperationFactory.Create(profile.Operations.First(o => o.Op == "smbios_identity"));
-        op.Check(ctx);
-        report.Add(op.Apply(ctx));
+        var ctx = new BuildContext(new(), new())
+        {
+            DxeVolume = dec,
+            DxeInnerFvOffset = innerFvOffset,
+            SmbiosStart = start,
+            SmbiosEnd = end,
+            Dmi = dmi,
+        };
+        report.Section("DXE volume");
+        foreach (var spec in profile.Operations.Where(o => o.Op is "smbios_identity" or "add_ec_init"))
+        {
+            var op = OperationFactory.Create(spec);
+            op.Check(ctx);
+            report.Add(op.Apply(ctx));
+            if (spec.Op == "smbios_identity")
+                new FfsFile(dec, smbiosFile.Offset).FixChecksums(dec);   // editing the static data disturbs the file checksum
+        }
 
-        new FfsFile(dec, smbiosFile.Offset).FixChecksums(dec);
         GuidedSection.ReplaceLzmaGuided(work, dxeFile, lzmaSection, dec);
         report.Add("DXE volume recompressed");
     }

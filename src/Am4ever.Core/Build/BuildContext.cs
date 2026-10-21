@@ -28,8 +28,9 @@ public sealed class BuildContext
     /// <summary>The OEM codec verb list, extracted once from the OEM ROM.</summary>
     public IReadOnlyList<uint>? HpVerbs { get; init; }
 
-    // SMBIOS target (set when a smbios_identity operation runs).
+    // DXE target (set when a DXE-phase operation runs).
     public byte[]? DxeVolume { get; init; }
+    public int DxeInnerFvOffset { get; init; }
     public int SmbiosStart { get; init; }
     public int SmbiosEnd { get; init; }
     public DmiIdentity? Dmi { get; init; }

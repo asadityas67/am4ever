@@ -32,7 +32,6 @@ public static class BuildCommand
             File.WriteAllText(reportPath, result.Report.ToMarkdown());
             io.Out.WriteLine($"wrote {args.OutPath} ({result.Image.Length} bytes)");
             io.Out.WriteLine($"wrote {reportPath}");
-            io.Out.WriteLine("NOTE: this M3 image carries HP's configuration and identity but not yet the EC fan hand-off (fans run full speed until milestone 4).");
             return 0;
         }
         catch (Exception e) when (e is RomFormatException or RomEditException or IOException)
