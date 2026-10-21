@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+using Am4ever.Core.Rom;
+using Am4ever.Core.Rom.Amd;
+
 namespace Am4ever.App.Wizard;
 
 public enum WizardStep { Dump, Profile, Donor, Identity, Build, Flash }
@@ -53,8 +56,18 @@ public sealed class WizardFlow
     // Per-step gates; tasks 2–4 replace the placeholder bodies with real validation.
     bool CanAdvanceDump(out string? reason)
     {
+        reason = null;
         if (PrimaryDump is null) { reason = "pick your BIOS dump"; return false; }
-        reason = null; return true;   // Task 2 adds size / AM4 / blank / two-dump validation
+        RomImage rom;
+        try { rom = RomImage.Load(PrimaryDump); }
+        catch (RomFormatException e) { reason = e.Message; return false; }
+        if (SecondDump is not null && !PrimaryDump.AsSpan().SequenceEqual(SecondDump))
+        { reason = "the two reads of the chip do not match byte for byte — re-read the chip"; return false; }
+        if (PrimaryDump.AsSpan().IndexOfAnyExcept(PrimaryDump[0]) < 0)
+        { reason = "the dump is blank/erased (all 0x" + PrimaryDump[0].ToString("X2") + ")"; return false; }
+        if (AmdDirectory.FindAll(rom).Count == 0)
+        { reason = "not an AMD AM4 image (no PSP/BIOS directories found)"; return false; }
+        return true;
     }
     bool CanAdvanceProfile(out string? reason) { reason = "no profile selected"; return false; }
     bool CanAdvanceDonor(out string? reason) { reason = "donor not verified"; return false; }
