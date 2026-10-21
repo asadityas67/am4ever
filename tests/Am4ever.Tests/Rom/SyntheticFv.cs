@@ -79,6 +79,23 @@ public static class SyntheticFv
         return buf;
     }
 
+    /// <summary>Wrap an already-built FFS file in a minimal volume so it can be parsed; returns the file offset.</summary>
+    public static byte[] WrapFile(byte[] ffs, out int fileOffset)
+    {
+        int first = (FvHeaderLength + 7) & ~7;
+        int total = first + ((ffs.Length + 7) & ~7) + 0x100;
+        var buf = new byte[total];
+        Ffs2.ToByteArray().CopyTo(buf, 16);
+        Bin.W64(buf, 32, (ulong)total);
+        Bin.W32(buf, 40, 0x4856465F);            // _ F V H
+        Bin.W16(buf, 48, FvHeaderLength);
+        buf[55] = 2;
+        ffs.CopyTo(buf, first);
+        for (int i = first + ffs.Length; i < total; i++) buf[i] = 0xFF;
+        fileOffset = first;
+        return buf;
+    }
+
     public static void CorruptFirstFileSizeToZero(byte[] buf)
     {
         int o = (FvHeaderLength + 7) & ~7;
