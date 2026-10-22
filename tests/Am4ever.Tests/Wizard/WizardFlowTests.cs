@@ -140,4 +140,21 @@ public class WizardFlowTests
         Assert.Equal(WizardStep.Dump, w.Step);
         Assert.NotNull(w.PrimaryDump);
     }
+
+    [RomFact] public void Build_ForwardsProgressToPipeline()
+    {
+        var flow = new WizardFlow();
+        flow.SetDump(File.ReadAllBytes(TestRoms.HpF65!));
+        flow.SelectProfile(BundledData.LoadProfile("hp-285-g3-8434"));
+        flow.SetDonor(File.ReadAllBytes(TestRoms.AsrockP1043!));
+        var items = new List<BuildProgress>();
+        var outPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            var outcome = flow.Build(outPath, new SyncProgress<BuildProgress>(items.Add));
+            Assert.True(outcome.Ok, outcome.Error);
+            Assert.Equal(items[^1].Total, items[^1].Done);
+        }
+        finally { File.Delete(outPath); File.Delete(outPath + ".report.md"); }
+    }
 }
