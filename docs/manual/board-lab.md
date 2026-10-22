@@ -38,9 +38,10 @@ an unseen donor); that is left to experts to add in the core.
 3. **Add** the operations you want; the ordered list and a **live JSON preview** update as you go.
 4. **Test build** runs the real build + checks against your ROMs and reports success or the exact
    failure (no file is written). **Export** the `.json` to share; **Import** someone's draft to tweak.
-5. **Identity:** `smbios_identity` needs a board-specific identity extractor in the core (today only
-   `hp-8434`). For a brand-new board it is omitted with a note — everything else is board-agnostic and
-   the profile still builds, carrying the donor's identity until an extractor is added.
+5. **Identity:** `smbios_identity` works for any board — its identity comes from the profile's own
+   board metadata (vendor / model / board-id), or from a machine-data file via `--dmi`. A board that
+   ships a named identity extractor (today only `hp-8434`) gets its exact strings pinned; everything
+   else is derived generically.
 
 ## Inspection views (read-only)
 Three basic viewers help you see what you are about to add: a **hex view**, an x86 **disassembly**
