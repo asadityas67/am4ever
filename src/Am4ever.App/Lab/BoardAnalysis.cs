@@ -86,6 +86,19 @@ public sealed class BoardAnalysis
         return img is null ? null : PeiEmulator.Run(img, cpuid, overrideOffset);
     }
 
+    /// <summary>The HD-audio codec id (e.g. 0x10EC0671) found in the AmdSocAm4* PEIMs' codec-list
+    /// entries, or null if none. Used by the composer to seed a <c>verb_table</c> operation.</summary>
+    public uint? AudioCodec()
+    {
+        foreach (var f in new FirmwareVolume(_peiBuf, _fvOffset).Files())
+        {
+            if (!f.Name().StartsWith("AmdSocAm4", StringComparison.Ordinal)) continue;
+            for (int i = f.Offset; i + 4 <= f.End; i++)
+                if ((Bin.U32(_peiBuf, i) >> 16) == 0x10EC) return Bin.U32(_peiBuf, i);   // Realtek codec id
+        }
+        return null;
+    }
+
     internal byte[]? ImageSection(string moduleName, int index)
     {
         var hits = new FirmwareVolume(_peiBuf, _fvOffset).Files().Where(f => f.Name() == moduleName).ToList();
