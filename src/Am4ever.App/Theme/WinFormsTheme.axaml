@@ -1,7 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ctl="using:Am4ever.App.Controls"
-        xmlns:fb="using:Am4ever.App.Feedback">
+        xmlns:ctl="using:Am4ever.App.Controls">
   <!-- Classic WinForms look over SimpleTheme (design §4). Colours come from WinFormsColors.axaml. -->
   <Styles.Resources>
     <ResourceDictionary>
