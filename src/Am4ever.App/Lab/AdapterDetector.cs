@@ -16,6 +16,7 @@ namespace Am4ever.App.Lab;
 public static class AdapterDetector
 {
     const uint FvSignature = 0x4856465F;
+    static readonly Guid SmbiosFileGuid = Guid.Parse("daf4bf89-ce71-4917-b522-c89d32fbc59f");   // AMI SMBIOS static data — marks the real DXE volume
 
     public static AdapterDraft Detect(byte[] donorRom)
     {
@@ -43,7 +44,14 @@ public static class AdapterDetector
                 {
                     var guided = f.Sections().FirstOrDefault(s => s.Type == SectionType.GuidDefined);
                     if (guided is null) continue;
-                    try { GuidedSection.DecompressLzmaGuided(rom, guided); }   // the DXE container is LZMA-wrapped
+                    try
+                    {
+                        var dec = GuidedSection.DecompressLzmaGuided(rom, guided);   // the DXE container is LZMA-wrapped
+                        var inner = SectionWalker.Walk(dec, 0, dec.Length).FirstOrDefault(s => s.Type == SectionType.FirmwareVolumeImage);
+                        if (inner is null) continue;                                 // not a volume container
+                        if (!new FirmwareVolume(dec, inner.DataOffset).Files().Any(x => x.Guid == SmbiosFileGuid))
+                            continue;                                                // a decoy LZMA FV, not the main DXE volume
+                    }
                     catch { continue; }
                     draft.DxeFvOffset = fv;
                     draft.DxeFileGuid = f.Guid.ToString();
@@ -82,7 +90,8 @@ public static class AdapterDetector
             if (innerFv < 0) continue;
             draft.Compression = "amd-zlib";
             draft.BootBlobOffset = off;
-            draft.BootBlobLength = 0x100 + (int)len;
+            // the blob sits inside an FFS file at off-0x30; the adapter's length is that file size
+            draft.BootBlobLength = off >= 0x30 ? (int)Bin.U24(raw, off - 0x30 + 20) : 0x100 + (int)len;
             draft.BootFvOffset = innerFv;
             return;
         }
@@ -100,7 +109,7 @@ public static class AdapterDetector
             foreach (var f in new FirmwareVolume(buf, fvOffset).Files())
             {
                 var name = f.Name();
-                if (!name.StartsWith("AmdCpm", StringComparison.Ordinal) || !name.Contains("InitPeim")) continue;
+                if (!name.StartsWith("AmdCpmOem", StringComparison.Ordinal)) continue;   // OEM PEIMs only
                 int idx = counts.GetValueOrDefault(name);
                 counts[name] = idx + 1;
                 string fam = name.Contains("Rv") ? "RV" : name.Contains("Rn") ? "RN" : name.Contains("Cz") ? "CZN"
