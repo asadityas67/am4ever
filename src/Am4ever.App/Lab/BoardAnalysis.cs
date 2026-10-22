@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 using System.Text;
 using Am4ever.Core.Board.Cpm;
+using Am4ever.Core.Profile;
 using Am4ever.Emu;
 using Am4ever.Core.Rom;
 using Am4ever.Core.Rom.Amd;
@@ -36,6 +37,33 @@ public sealed class BoardAnalysis
         uint clen = Bin.U32(rom, bootBlobOffset + 0x14);
         var (_, pei) = PspZlib.Decompress(rom.AsSpan(bootBlobOffset, 0x100 + (int)clen));
         return new BoardAnalysis(rom, pei, 0x20);
+    }
+
+    /// <summary>Load an OEM dump without a known offset: scan for the PEI firmware volume (the one holding a
+    /// CPM OEM PEIM). Replaces the old hardcoded 0xC00000.</summary>
+    public static BoardAnalysis LoadOem(byte[] rom)
+    {
+        RomImage.Load(rom);
+        foreach (int fv in FindFvOffsets(rom))
+        {
+            try
+            {
+                if (new FirmwareVolume(rom, fv).Files().Any(f => f.Name().StartsWith("AmdCpmOem", StringComparison.Ordinal)))
+                    return new BoardAnalysis(rom, rom, fv);
+            }
+            catch (RomFormatException) { /* not a usable FV here; keep scanning */ }
+        }
+        throw new RomFormatException("no PEI firmware volume with a CPM OEM PEIM found in the OEM dump");
+    }
+
+    /// <summary>Load a donor ROM using its adapter's volume offsets (no hardcoded 0xE02000).</summary>
+    public static BoardAnalysis LoadDonor(byte[] rom, DonorAdapter adapter) =>
+        Load(rom, adapter.Volumes.BootFvOffset, adapter.Volumes.BootBlobOffset);
+
+    static IEnumerable<int> FindFvOffsets(byte[] rom)
+    {
+        for (int i = 0x28; i + 4 <= rom.Length; i++)          // FV signature sits at FV-header +0x28
+            if (Bin.U32(rom, i) == FvSignature) yield return i - 0x28;
     }
 
     public RomSummary Summary() => new(_rom.Length, AmdDirectory.FindAll(RomImage.Load(_rom)).Count, FindAgesa(_rom));

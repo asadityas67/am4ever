@@ -23,6 +23,7 @@ public sealed class BoardLabView : UserControl
     static readonly string[] BundledAdapters = { "asrock-ab350m-pro4-p10.43" };
 
     BoardAnalysis? _oem, _donor;
+    DonorAdapter? _labAdapter;
     readonly IToastService _toasts;
     readonly ComposerCore _composer = new();
     bool _composerOemSet, _composerAdapterSet;
@@ -71,7 +72,7 @@ public sealed class BoardLabView : UserControl
         _adapterBox.SelectionChanged += (_, _) =>
         {
             if (_adapterBox.SelectedItem is not string id) return;
-            try { _composer.SetAdapterId(id); _composerAdapterSet = true; }
+            try { _composer.SetAdapterId(id); _labAdapter = BundledData.LoadAdapter(id); _composerAdapterSet = true; }
             catch (Exception ex) { _composerStatus.Text = ex.Message; }
             UpdateComposerState();
         };
@@ -130,15 +131,19 @@ public sealed class BoardLabView : UserControl
             using var ms = new MemoryStream();
             await s.CopyToAsync(ms);
             var bytes = ms.ToArray();
-            var a = BoardAnalysis.Load(bytes, 0xC00000, 0xE02000);
             if (oem)
             {
-                _oem = a;
-                _modules.ItemsSource = a.Modules().Select(m => m.Name).ToList();
+                _oem = BoardAnalysis.LoadOem(bytes);           // auto-detect the PEI volume
+                _modules.ItemsSource = _oem.Modules().Select(m => m.Name).ToList();
                 _composer.SetOemDump(bytes);
                 _composerOemSet = true;
             }
-            else { _donor = a; _composer.SetDonor(bytes); }
+            else
+            {
+                if (_labAdapter is null) { _summary.Text = "Choose a donor adapter first (Profile Composer)."; return; }
+                _donor = BoardAnalysis.LoadDonor(bytes, _labAdapter);   // offsets from the adapter
+                _composer.SetDonor(bytes);
+            }
             RefreshSummary();
             ShowDetail();
             UpdateComposerState();
