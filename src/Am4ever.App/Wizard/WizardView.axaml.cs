@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+using Am4ever.App.Controls;
+using Am4ever.App.Feedback;
+using Am4ever.Core.Build;
 using Am4ever.Core.Profile;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -12,28 +15,41 @@ namespace Am4ever.App.Wizard;
 /// The beginner wizard view: one panel per <see cref="WizardStep"/>, Back/Next driven by
 /// <see cref="WizardFlow"/>. Built in code (no XAML) to stay small and headless-testable. File
 /// pickers use the hosting window's storage provider and are inert until the view is in a window.
+/// Interaction feedback (a Win98 segmented bar on the build, toasts per step) is layered on top.
 /// </summary>
 public sealed class WizardView : UserControl
 {
     readonly WizardFlow _flow;
+    readonly IToastService _toasts;
     public TextBlock StepLabel { get; } = new() { FontWeight = Avalonia.Media.FontWeight.Bold };
     public TextBlock Reason { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Opacity = 0.8 };
     public TextBlock Body { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     public Button BackButton { get; } = new() { Content = "< Back" };
     public Button NextButton { get; } = new() { Content = "Next >" };
+    public SegmentedProgressBar BuildProgressBar { get; } = new();
+    readonly TextBlock _buildResult = new() { TextWrapping = TextWrapping.Wrap, FontWeight = FontWeight.Bold };
     readonly Button _action = new();                 // the per-step "Browse…"/"Build…" action
     readonly ListBox _profiles = new() { MaxHeight = 160 };
 
-    public WizardView(WizardFlow flow)
+    /// <summary>Convenience for hosts/tests that don't supply a toast service: uses a self-contained one.</summary>
+    public WizardView(WizardFlow flow) : this(flow, new ToastService()) { }
+
+    public WizardView(WizardFlow flow, IToastService toasts)
     {
         _flow = flow;
+        _toasts = toasts;
         _action.Click += async (_, _) => await OnAction();
         _profiles.ItemTemplate = new FuncDataTemplate<BoardProfile>((p, _) =>
             new TextBlock { Text = WizardFlow.ProfileSummary(p), TextWrapping = TextWrapping.Wrap });
         _profiles.SelectionChanged += (_, _) =>
         {
             if (_profiles.SelectedItem is not BoardProfile p) return;
-            try { _flow.SelectProfile(p); }
+            try
+            {
+                _flow.SelectProfile(p);
+                var (msg, kind) = WizardToasts.ForProfile(p);
+                _toasts.Show(msg, kind);
+            }
             catch (Exception ex) { Reason.Text = ex.Message; }
             Refresh();
         };
@@ -44,7 +60,7 @@ public sealed class WizardView : UserControl
         Content = new StackPanel
         {
             Margin = new Avalonia.Thickness(12), Spacing = 8,
-            Children = { StepLabel, Body, _profiles, _action, Reason, buttons },
+            Children = { StepLabel, Body, _profiles, _action, BuildProgressBar, _buildResult, Reason, buttons },
         };
         Refresh();
     }
@@ -57,6 +73,8 @@ public sealed class WizardView : UserControl
         _profiles.IsVisible = s == WizardStep.Profile;
         if (s == WizardStep.Profile) _profiles.ItemsSource = _flow.MatchingProfiles();
         _action.IsVisible = s is WizardStep.Dump or WizardStep.Donor or WizardStep.Identity or WizardStep.Build;
+        BuildProgressBar.IsVisible = s == WizardStep.Build;
+        _buildResult.IsVisible = s == WizardStep.Build && !string.IsNullOrEmpty(_buildResult.Text);
         _action.Content = s switch
         {
             WizardStep.Dump => "Choose your BIOS dump…",
@@ -86,6 +104,24 @@ public sealed class WizardView : UserControl
         _ => FlashChecklist.Text,
     };
 
+    /// <summary>Show the outcome of a build: full bar + done panel + success toast, or an error toast
+    /// with the bar left where it stopped. Public so a headless test can drive it without a real build.</summary>
+    public void ReportBuildOutcome(BuildOutcome outcome)
+    {
+        if (outcome.Ok)
+        {
+            BuildProgressBar.Value = 1.0;
+            _buildResult.Text = $"✓ Done. Report saved: {outcome.ReportPath}";
+        }
+        else
+        {
+            _buildResult.Text = $"✕ Build failed (no image written): {outcome.Error}";
+        }
+        _buildResult.IsVisible = true;
+        var (msg, kind) = WizardToasts.ForBuild(outcome);
+        _toasts.Show(msg, kind);
+    }
+
     async Task OnAction()
     {
         var top = TopLevel.GetTopLevel(this);
@@ -98,9 +134,13 @@ public sealed class WizardView : UserControl
                 if (save is null) return;
                 Reason.Text = "Building and checking… this takes a few seconds.";
                 _action.IsEnabled = false;
-                var outcome = await Task.Run(() => _flow.Build(save.Path.LocalPath));   // off the UI thread
+                BuildProgressBar.Value = 0;
+                _buildResult.Text = "";
+                // created on the UI thread, so the reporter posts bar updates back to the UI thread
+                var progress = new Progress<BuildProgress>(p => BuildProgressBar.Value = p.Total == 0 ? 0 : (double)p.Done / p.Total);
+                var outcome = await Task.Run(() => _flow.Build(save.Path.LocalPath, progress));   // off the UI thread
                 _action.IsEnabled = true;
-                Reason.Text = outcome.Ok ? $"Built. Report saved: {outcome.ReportPath}" : $"Build failed (no image written): {outcome.Error}";
+                ReportBuildOutcome(outcome);
                 Refresh();
                 return;
             }
@@ -109,9 +149,18 @@ public sealed class WizardView : UserControl
             var bytes = await ReadAll(files[0]);
             switch (_flow.Step)
             {
-                case WizardStep.Dump: _flow.SetDump(bytes); break;
-                case WizardStep.Donor: _flow.SetDonor(bytes); break;
-                case WizardStep.Identity: _flow.SetIdentity(IdentityChoice.FromDmiFile, bytes); break;
+                case WizardStep.Dump:
+                    _flow.SetDump(bytes);
+                    if (_flow.CanAdvance(out _)) { var (m, k) = WizardToasts.ForDump(bytes.Length); _toasts.Show(m, k); }
+                    break;
+                case WizardStep.Donor:
+                    _flow.SetDonor(bytes);
+                    if (_flow.CanAdvance(out _)) { var (m, k) = WizardToasts.ForDonor(); _toasts.Show(m, k); }
+                    break;
+                case WizardStep.Identity:
+                    _flow.SetIdentity(IdentityChoice.FromDmiFile, bytes);
+                    { var (m, k) = WizardToasts.ForIdentity(IdentityChoice.FromDmiFile); _toasts.Show(m, k); }
+                    break;
             }
             Refresh();
         }
