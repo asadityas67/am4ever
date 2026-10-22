@@ -43,6 +43,15 @@ an unseen donor); that is left to experts to add in the core.
    ships a named identity extractor (today only `hp-8434`) gets its exact strings pinned; everything
    else is derived generically.
 
+## Donor Adapter Authoring
+To support a **new donor** (one without a bundled adapter), author a donor adapter here. Load the donor
+ROM, then **Detect from donor** — the tool fills in what it can read: the SHA-256, the volume offsets
+(boot/PEI blob, DXE FV), the DXE container GUID, the compression, and the CPM module list with suggested
+family tags. You finish the rest: the adapter id and identity, the module family tags if a guess is wrong,
+and — the one piece that can't be auto-found — the **override sites** (family → offset → expected bytes),
+which you locate with the hex/disassembly views. **Add override** rows them in; the adapter JSON preview
+updates live. **Export** the `.json` to share; **Import** one to edit. A profile can then target your donor.
+
 ## Inspection views (read-only)
 Three basic viewers help you see what you are about to add: a **hex view**, an x86 **disassembly**
 (managed Iced decoder — handy for eyeballing an override routine), and a **parsed-table** list of a
