@@ -25,8 +25,27 @@ CPM table list looks right, the byte-compare against the donor shows the expecte
 and the emulator run shows `writes_outside=0`. This mirrors what the project's PEI verification test
 does automatically.
 
-## Not in this build
-The hex editor, Capstone disassembly, in-place table editors, the EC-init sequence composer, and
-profile export/import are not implemented yet — Board Lab currently covers analyse, compare and the
-emulator console. The underlying operations all exist in the core and CLI (see [cli.md](cli.md));
-the expert editing UI is future work.
+## Profile Composer
+The composer builds a shareable **board profile** (like `profiles/hp-285-g3-8434.json`) for a new OEM
+board against a donor that already has a bundled adapter — the same path the HP 285 G3 profile was
+authored by hand. It does not author a brand-new donor adapter (flash offsets, boot-blob, DXE GUID for
+an unseen donor); that is left to experts to add in the core.
+
+1. **Load your OEM dump** and the **donor**, and **choose the donor adapter**.
+2. **Discover operations** — the composer reads the structures (modules per family, the GPIO platform
+   masks, the override sites from the adapter, the audio codec) and suggests the matching operations
+   with real values filled in. `dxio_layout`/`ddi_layout` come as **inferred templates** to refine.
+3. **Add** the operations you want; the ordered list and a **live JSON preview** update as you go.
+4. **Test build** runs the real build + checks against your ROMs and reports success or the exact
+   failure (no file is written). **Export** the `.json` to share; **Import** someone's draft to tweak.
+5. **Identity:** `smbios_identity` needs a board-specific identity extractor in the core (today only
+   `hp-8434`). For a brand-new board it is omitted with a note — everything else is board-agnostic and
+   the profile still builds, carrying the donor's identity until an extractor is added.
+
+## Inspection views (read-only)
+Three basic viewers help you see what you are about to add: a **hex view**, an x86 **disassembly**
+(managed Iced decoder — handy for eyeballing an override routine), and a **parsed-table** list of a
+module's CPM tables. The table view has an **Edit toggle**: turning it on shows a warning **every
+time**, and edits are captured as profile **operations** — nothing ever writes raw ROM bytes. Deeper
+tools (a full hex editor, per-cell grid editors) are intentionally out of scope; the project is open
+source and an expert can bolt their own onto the core.
