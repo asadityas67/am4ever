@@ -20,6 +20,13 @@ public class BoardLabViewTests
         Assert.False(view.TestButton.IsEnabled);        // no OEM dump / adapter yet
     }
 
+    [AvaloniaFact] public void AdapterAuthoring_DetectDisabledUntilDonorLoaded()
+    {
+        var view = new BoardLabView(new ToastService { ScheduleDismiss = (_, _) => { } });
+        Assert.NotNull(view.DetectAdapterButton);
+        Assert.False(view.DetectAdapterButton.IsEnabled);
+    }
+
     [AvaloniaFact] public void TableEditToggle_On_RaisesWarning()
     {
         var view = new BoardLabView(new ToastService { ScheduleDismiss = (_, _) => { } });

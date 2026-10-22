@@ -58,6 +58,18 @@ public sealed class BoardLabView : UserControl
     public SegmentedProgressBar ComposerProgressBar { get; } = new() { IsVisible = false };
     public bool LastTableEditWarningShown { get; private set; }
 
+    // --- donor adapter authoring ---
+    byte[]? _donorBytes;
+    AdapterDraft _adapterDraft = new();
+    readonly TextBox _ovFamily = new() { Watermark = "family", Width = 80 };
+    readonly TextBox _ovOffset = new() { Watermark = "offset", Width = 80 };
+    readonly TextBox _ovExpected = new() { Watermark = "expected hex", Width = 150 };
+    readonly TextBox _adapterJson = new() { IsReadOnly = true, AcceptsReturn = true, MaxHeight = 160, FontFamily = new FontFamily("Consolas, monospace") };
+    readonly Button _importAdapterButton = new() { Content = "Import adapter…" };
+    public Button DetectAdapterButton { get; } = new() { Content = "Detect from donor", IsEnabled = false };
+    public Button AddOverrideButton { get; } = new() { Content = "Add override" };
+    public Button ExportAdapterButton { get; } = new() { Content = "Export adapter…" };
+
     public BoardLabView() : this(new ToastService()) { }
 
     public BoardLabView(IToastService toasts)
@@ -85,6 +97,24 @@ public sealed class BoardLabView : UserControl
         ExportButton.Click += async (_, _) => await Export();
         ImportButton.Click += async (_, _) => await Import();
         TableEditToggle.IsCheckedChanged += (_, _) => OnTableEditToggled();
+        DetectAdapterButton.Click += (_, _) => DetectAdapter();
+        AddOverrideButton.Click += (_, _) => AddOverride();
+        ExportAdapterButton.Click += async (_, _) => await ExportAdapter();
+        _importAdapterButton.Click += async (_, _) => await ImportAdapter();
+
+        var adapter = new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                new TextBlock { Text = "— Donor Adapter Authoring —", FontWeight = FontWeight.Bold },
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { DetectAdapterButton, ExportAdapterButton, _importAdapterButton } },
+                new TextBlock { Text = "add override site:" },
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _ovFamily, _ovOffset, _ovExpected, AddOverrideButton } },
+                new TextBlock { Text = "adapter JSON:" },
+                _adapterJson,
+            },
+        };
 
         var composer = new StackPanel
         {
@@ -114,6 +144,7 @@ public sealed class BoardLabView : UserControl
                     new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { OpenOemButton, OpenDonorButton } },
                     _summary, _modules, _detail, _emulate,
                     composer,
+                    adapter,
                 },
             },
         };
@@ -143,6 +174,8 @@ public sealed class BoardLabView : UserControl
                 if (_labAdapter is null) { _summary.Text = "Choose a donor adapter first (Profile Composer)."; return; }
                 _donor = BoardAnalysis.LoadDonor(bytes, _labAdapter);   // offsets from the adapter
                 _composer.SetDonor(bytes);
+                _donorBytes = bytes;
+                DetectAdapterButton.IsEnabled = true;
             }
             RefreshSummary();
             ShowDetail();
@@ -277,6 +310,56 @@ public sealed class BoardLabView : UserControl
             _toasts.Show("✓ Profile imported", ToastKind.Success);
         }
         catch (Exception ex) { _composerStatus.Text = "Import failed: " + ex.Message; _toasts.Show("✕ Import failed", ToastKind.Error); }
+    }
+
+    // --- donor adapter authoring ---
+    void DetectAdapter()
+    {
+        if (_donorBytes is null) return;
+        _adapterDraft = AdapterDetector.Detect(_donorBytes);
+        RefreshAdapterJson();
+        _toasts.Show("✓ Adapter detected — fill the override sites", ToastKind.Info);
+    }
+
+    void AddOverride()
+    {
+        if (!int.TryParse(_ovOffset.Text, out var off)) { _toasts.Show("✕ override offset must be a number", ToastKind.Error); return; }
+        _adapterDraft.Overrides.Add(new OverrideDraft(_ovFamily.Text ?? "", off, (_ovExpected.Text ?? "").Replace(" ", "")));
+        RefreshAdapterJson();
+    }
+
+    void RefreshAdapterJson()
+    {
+        try { _adapterJson.Text = System.Text.Encoding.UTF8.GetString(AdapterWriter.Write(_adapterDraft.ToAdapter())); }
+        catch (Exception ex) { _adapterJson.Text = "(cannot render: " + ex.Message + ")"; }
+    }
+
+    async Task ExportAdapter()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top is null) return;
+        var save = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions { SuggestedFileName = "adapter.json" });
+        if (save is null) return;
+        try { File.WriteAllBytes(save.Path.LocalPath, AdapterWriter.Write(_adapterDraft.ToAdapter())); _toasts.Show("✓ Adapter exported", ToastKind.Success); }
+        catch (Exception ex) { _toasts.Show("✕ " + ex.Message, ToastKind.Error); }
+    }
+
+    async Task ImportAdapter()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top is null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { AllowMultiple = false });
+        if (files.Count == 0) return;
+        try
+        {
+            await using var s = await files[0].OpenReadAsync();
+            using var ms = new MemoryStream();
+            await s.CopyToAsync(ms);
+            _adapterDraft = AdapterDraft.FromAdapter(ProfileLoader.LoadAdapter(ms.ToArray()));
+            RefreshAdapterJson();
+            _toasts.Show("✓ Adapter imported", ToastKind.Success);
+        }
+        catch (Exception ex) { _toasts.Show("✕ Import failed: " + ex.Message, ToastKind.Error); }
     }
 
     void OnTableEditToggled()
