@@ -20,6 +20,15 @@ public class BoardLabViewTests
         Assert.False(view.TestButton.IsEnabled);        // no OEM dump / adapter yet
     }
 
+    [AvaloniaFact] public void Inspect_HexAndDisasmButtonsExist_DisabledUntilModuleSelected()
+    {
+        var view = new BoardLabView(new ToastService { ScheduleDismiss = (_, _) => { } });
+        Assert.NotNull(view.HexButton);
+        Assert.NotNull(view.DisasmButton);
+        Assert.False(view.HexButton.IsEnabled);
+        Assert.False(view.DisasmButton.IsEnabled);
+    }
+
     [AvaloniaFact] public void AdapterAuthoring_DetectDisabledUntilDonorLoaded()
     {
         var view = new BoardLabView(new ToastService { ScheduleDismiss = (_, _) => { } });

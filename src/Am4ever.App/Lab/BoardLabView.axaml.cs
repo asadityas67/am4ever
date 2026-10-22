@@ -36,6 +36,12 @@ public sealed class BoardLabView : UserControl
     readonly TextBlock _detail = new() { TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas, monospace") };
     readonly Button _emulate = new() { Content = "Run selected module in emulator", IsEnabled = false };
 
+    // --- inspect selected module (read-only hex / disassembly) ---
+    readonly TextBox _inspectOffset = new() { Watermark = "offset (0x..)", Width = 110 };
+    readonly TextBox _inspectOutput = new() { IsReadOnly = true, AcceptsReturn = true, MaxHeight = 240, FontFamily = new FontFamily("Consolas, monospace") };
+    public Button HexButton { get; } = new() { Content = "Hex", IsEnabled = false };
+    public Button DisasmButton { get; } = new() { Content = "Disassemble", IsEnabled = false };
+
     // --- composer ---
     readonly ComboBox _adapterBox = new() { PlaceholderText = "choose donor adapter…" };
     readonly Button _discoverButton = new() { Content = "Discover operations", IsEnabled = false };
@@ -79,6 +85,8 @@ public sealed class BoardLabView : UserControl
         OpenDonorButton.Click += async (_, _) => await Open(oem: false);
         _modules.SelectionChanged += (_, _) => ShowDetail();
         _emulate.Click += (_, _) => RunEmulator();
+        HexButton.Click += (_, _) => ShowInspect(hex: true);
+        DisasmButton.Click += (_, _) => ShowInspect(hex: false);
 
         _adapterBox.ItemsSource = BundledAdapters;
         _adapterBox.SelectionChanged += (_, _) =>
@@ -143,6 +151,12 @@ public sealed class BoardLabView : UserControl
                 {
                     new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { OpenOemButton, OpenDonorButton } },
                     _summary, _modules, _detail, _emulate,
+                    new StackPanel { Spacing = 6, Children =
+                    {
+                        new TextBlock { Text = "— Inspect selected module —", FontWeight = FontWeight.Bold },
+                        new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _inspectOffset, HexButton, DisasmButton } },
+                        _inspectOutput,
+                    } },
                     composer,
                     adapter,
                 },
@@ -209,6 +223,26 @@ public sealed class BoardLabView : UserControl
         }
         _detail.Text = sb.ToString();
         _emulate.IsEnabled = BoardAnalysis.EmulatorAvailable && tags.Count > 0;
+        HexButton.IsEnabled = DisasmButton.IsEnabled = true;
+    }
+
+    void ShowInspect(bool hex)
+    {
+        var img = _oem is not null && _modules.SelectedItem is string name ? _oem.ImageSection(name, ModuleIndex(name)) : null;
+        if (img is null) { _inspectOutput.Text = "(select a module first)"; return; }
+        int off = ParseOffset(_inspectOffset.Text);
+        if (off < 0 || off >= img.Length) { _inspectOutput.Text = $"offset out of range (0..0x{img.Length:X})"; return; }
+        _inspectOutput.Text = hex
+            ? string.Join("\n", HexDump.Format(img[off..Math.Min(off + 256, img.Length)], off))
+            : string.Join("\n", Disassembler.Decode(img[off..Math.Min(off + 128, img.Length)], (ulong)off).Select(i => $"{i.Address:X4}  {i.Text}"));
+    }
+
+    static int ParseOffset(string? s)
+    {
+        s = (s ?? "").Trim();
+        if (s.Length == 0) return 0;
+        try { return s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? Convert.ToInt32(s[2..], 16) : int.Parse(s); }
+        catch { return -1; }
     }
 
     void RunEmulator()
