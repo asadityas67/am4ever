@@ -66,8 +66,8 @@ public static class BuildPipeline
         if (verbOp is not null)
         {
             uint romBase = (uint)(0x1_0000_0000 - oemRom.Length);
-            verbs = VerbTable.ExtractHp(oemRom, profile.OemPeiFvOffset.Value, verbOp.NewCodec
-                ?? throw new RomFormatException("verb_table is missing new_codec"), romBase);
+            verbs = VerbTable.Extract(oemRom, profile.OemPeiFvOffset.Value, verbOp.NewCodec
+                ?? throw new RomFormatException("verb_table is missing new_codec"), romBase);   // SSID check off for generic boards
         }
 
         var ctx = new BuildContext(donorCopies, oemCopies) { HpVerbs = verbs };

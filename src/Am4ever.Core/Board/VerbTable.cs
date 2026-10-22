@@ -19,7 +19,7 @@ public static class VerbTable
     /// at a run of UInt32 verbs that ends where the next list entry begins. The verb list must be the
     /// same in every PEIM, and its subsystem-ID verbs are validated.
     /// </summary>
-    public static IReadOnlyList<uint> ExtractHp(byte[] hpRom, int peiFvOffset, uint codecId, uint romBase)
+    public static IReadOnlyList<uint> Extract(byte[] hpRom, int peiFvOffset, uint codecId, uint romBase, uint[]? expectedSsid = null)
     {
         var distinct = new HashSet<string>();
         List<uint>? verbs = null;
@@ -50,15 +50,23 @@ public static class VerbTable
         if (distinct.Count != 1 || verbs is null)
             throw new RomFormatException($"expected one 0x{codecId:X} verb table, found {distinct.Count}");
 
-        // subsystem ID: the verbs that write pin 0x1 config default (NID in bits 27:20 == 0x01)
+        if (expectedSsid is not null) CheckSubsystemId(verbs, expectedSsid);
+        return verbs;
+    }
+
+    /// <summary>The HP ALC671 path: extracts and validates HP's subsystem ID. Other boards use <see cref="Extract"/>.</summary>
+    public static IReadOnlyList<uint> ExtractHp(byte[] hpRom, int peiFvOffset, uint codecId, uint romBase) =>
+        Extract(hpRom, peiFvOffset, codecId, romBase, new uint[] { 0x34, 0x84, 0x3C, 0x10 });
+
+    /// <summary>Validate the codec's subsystem-ID verbs (registers 0x720..) against the expected bytes; throws on mismatch.</summary>
+    public static void CheckSubsystemId(IReadOnlyList<uint> verbs, uint[] expected)
+    {
         var ssid = new Dictionary<uint, uint>();
         foreach (var w in verbs)
             if (((w >> 20) & 0xFF) == 0x01) ssid[(w >> 8) & 0xFFF] = w & 0xFF;
-        var expected = new uint[] { 0x34, 0x84, 0x3C, 0x10 };
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < expected.Length; i++)
             if (!ssid.TryGetValue((uint)(0x720 + i), out var v) || v != expected[i])
-                throw new RomFormatException($"0x{codecId:X} verb table subsystem ID unexpected");
-        return verbs;
+                throw new RomFormatException("verb table subsystem ID unexpected");
     }
 
     /// <summary>
