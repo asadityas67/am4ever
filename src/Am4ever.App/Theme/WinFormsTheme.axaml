@@ -1,5 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="using:Am4ever.App.Controls"
+        xmlns:fb="using:Am4ever.App.Feedback">
   <!-- Classic WinForms look over SimpleTheme (design §4). Colours come from WinFormsColors.axaml. -->
   <Styles.Resources>
     <ResourceDictionary>
@@ -129,5 +131,21 @@
     <Setter Property="BorderBrush" Value="{DynamicResource am4.ControlDark}" />
     <Setter Property="BorderThickness" Value="0,1,0,0" />
     <Setter Property="Padding" Value="6,2" />
+  </Style>
+
+  <!-- Win98 segmented progress bar: a sunken trough (bevel reversed vs the raised Button) whose
+       PART_Segments panel the control fills with lit/unlit blocks. -->
+  <Style Selector="ctl|SegmentedProgressBar">
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border BorderThickness="1,1,0,0" BorderBrush="{DynamicResource am4.ControlDark}"
+                Background="{DynamicResource am4.Window}">
+          <Border BorderThickness="0,0,1,1" BorderBrush="{DynamicResource am4.ControlLightLight}" Padding="2">
+            <UniformGrid Name="PART_Segments" Rows="1" />
+          </Border>
+        </Border>
+      </ControlTemplate>
+    </Setter>
   </Style>
 </Styles>
