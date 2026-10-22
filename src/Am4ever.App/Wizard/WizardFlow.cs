@@ -68,13 +68,13 @@ public sealed class WizardFlow
     }
 
     /// <summary>Build the modded image, writing it and its report only on success (no override on failure).</summary>
-    public BuildOutcome Build(string outPath)
+    public BuildOutcome Build(string outPath, IProgress<BuildProgress>? progress = null)
     {
         if (PrimaryDump is null || _donor is null || SelectedProfile is null || _adapter is null)
             return new BuildOutcome(false, "the wizard is missing an input (dump, profile or donor)", null);
         try
         {
-            var result = BuildPipeline.Build(_donor, PrimaryDump, SelectedProfile, _adapter, _dmi);
+            var result = BuildPipeline.Build(_donor, PrimaryDump, SelectedProfile, _adapter, _dmi, progress);
             File.WriteAllBytes(outPath, result.Image);
             var reportPath = outPath + ".report.md";
             File.WriteAllText(reportPath, result.Report.ToMarkdown());

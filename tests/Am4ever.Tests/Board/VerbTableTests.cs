@@ -31,4 +31,15 @@ public class VerbTableTests
         var verbs = VerbTable.ExtractHp(hp, 0xC00000, 0x10EC0671, 0xFF000000);
         Assert.NotEmpty(verbs);                               // validated subsystem ID inside ExtractHp
     }
+
+    // one SSID verb word = (NID 0x01 << 20) | (reg << 8) | value
+    static uint Ssid(int reg, byte val) => (0x01u << 20) | ((uint)reg << 8) | val;
+
+    [Fact] public void CheckSubsystemId_PassesHp_ThrowsOnMismatch()
+    {
+        var hp = new[] { Ssid(0x720, 0x34), Ssid(0x721, 0x84), Ssid(0x722, 0x3C), Ssid(0x723, 0x10) };
+        VerbTable.CheckSubsystemId(hp, new uint[] { 0x34, 0x84, 0x3C, 0x10 });   // no throw
+        var wrong = new[] { Ssid(0x720, 0x99), Ssid(0x721, 0x84), Ssid(0x722, 0x3C), Ssid(0x723, 0x10) };
+        Assert.Throws<RomFormatException>(() => VerbTable.CheckSubsystemId(wrong, new uint[] { 0x34, 0x84, 0x3C, 0x10 }));
+    }
 }

@@ -1,9 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fb="using:Am4ever.App.Feedback"
         x:Class="Am4ever.App.MainWindow"
         Title="am4ever"
         Width="900" Height="600"
         WindowStartupLocation="CenterScreen">
+  <Panel>
   <DockPanel>
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
@@ -30,4 +32,6 @@
       <ContentControl x:Name="WizardHost" />
     </ScrollViewer>
   </DockPanel>
+  <fb:ToastHost x:Name="Toasts" />
+  </Panel>
 </Window>

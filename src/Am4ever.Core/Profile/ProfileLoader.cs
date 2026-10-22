@@ -60,17 +60,4 @@ public static class ProfileLoader
             throw new RomFormatException(
                 $"operation '{op}' {field} byte string is {bytes.Length} bytes; the limit is {MaxPatchBytes} (profiles carry no firmware)");
     }
-
-    /// <summary>Reads a byte[] from a hex string and vice versa. The 64-byte cap is enforced after load, not here.</summary>
-    sealed class HexBytesConverter : JsonConverter<byte[]>
-    {
-        public override byte[]? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            var s = reader.GetString();
-            return s is null ? null : Convert.FromHexString(s);
-        }
-
-        public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options) =>
-            writer.WriteStringValue(Convert.ToHexString(value));
-    }
 }

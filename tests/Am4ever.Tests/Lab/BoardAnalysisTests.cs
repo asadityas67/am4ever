@@ -18,6 +18,12 @@ public class BoardAnalysisTests
 
     [RomFact] public void Tables_UnknownModule_Reported() => Assert.Empty(Hp().CpmTables("NoSuchPeim", 0));
 
+    [RomFact] public void LoadOem_FindsThePeiVolume_WithoutHardcodedOffset()
+    {
+        var oem = BoardAnalysis.LoadOem(File.ReadAllBytes(TestRoms.HpF65!));
+        Assert.Contains(oem.Modules(), m => m.Name.StartsWith("AmdCpmOem"));
+    }
+
     [RomFact] public void Oem_ListsCpmPeims()
     {
         var a = Hp();

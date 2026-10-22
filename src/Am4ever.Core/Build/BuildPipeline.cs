@@ -24,9 +24,17 @@ public static class BuildPipeline
     static readonly string[] PeiOps =
         { "neutralise_override", "byte_patch", "port_gpio", "port_gevent", "empty_tables", "dxio_layout", "ddi_layout", "verb_table" };
 
-    public static BuildResult Build(byte[] donorRom, byte[] oemRom, BoardProfile profile, DonorAdapter adapter, DmiIdentity? dmiOverride)
+    public static BuildResult Build(byte[] donorRom, byte[] oemRom, BoardProfile profile, DonorAdapter adapter, DmiIdentity? dmiOverride, IProgress<BuildProgress>? progress = null)
     {
         var report = new BuildReport();
+
+        // Count the phases up front so progress is honest and the final report lands exactly on Total.
+        int apcbCount = profile.Operations.Count(o => o.Op == "apcb_check");
+        int peiCount = profile.Operations.Count(o => PeiOps.Contains(o.Op));
+        var dxeSpecs = profile.Operations.Where(o => o.Op is "smbios_identity" or "add_ec_init").ToList();
+        int total = 1 /*donor*/ + apcbCount + 1 /*PEI decompress*/ + peiCount + 1 /*boot repack*/ + (dxeSpecs.Count > 0 ? dxeSpecs.Count + 1 : 0);
+        int done = 0;
+        void Tick(string phase) => progress?.Report(new BuildProgress(++done, total, phase));
 
         if (adapter.Identity.Sha256 is { Length: > 0 } expected)
         {
@@ -34,14 +42,16 @@ public static class BuildPipeline
             if (!actual.StartsWith(expected.ToLowerInvariant(), StringComparison.Ordinal))
                 throw new RomFormatException($"donor ROM sha256 {actual[..16]}… does not match the adapter ({expected[..Math.Min(16, expected.Length)]}…)");
         }
+        Tick("Checking donor");
 
         var work = (byte[])donorRom.Clone();
         var vol = adapter.Volumes;
 
-        RunApcbChecks(profile, work, oemRom, report);
+        RunApcbChecks(profile, work, oemRom, report, Tick);
 
         // --- PEI phase ---
         var (header, pei) = PspZlib.Decompress(work.AsSpan(vol.BootBlobOffset, vol.BootBlobLength));
+        Tick("Reading boot volume");
         var donorFv = new FirmwareVolume(pei, vol.BootFvOffset);
         var oemFv = new FirmwareVolume(oemRom, profile.OemPeiFvOffset ?? throw new RomFormatException("profile is missing oem_pei_fv_offset"));
 
@@ -56,16 +66,17 @@ public static class BuildPipeline
         if (verbOp is not null)
         {
             uint romBase = (uint)(0x1_0000_0000 - oemRom.Length);
-            verbs = VerbTable.ExtractHp(oemRom, profile.OemPeiFvOffset.Value, verbOp.NewCodec
-                ?? throw new RomFormatException("verb_table is missing new_codec"), romBase);
+            verbs = VerbTable.Extract(oemRom, profile.OemPeiFvOffset.Value, verbOp.NewCodec
+                ?? throw new RomFormatException("verb_table is missing new_codec"), romBase);   // SSID check off for generic boards
         }
 
         var ctx = new BuildContext(donorCopies, oemCopies) { HpVerbs = verbs };
         CaptureBaseGpio(ctx, profile);
 
-        var peiOps = profile.Operations.Where(o => PeiOps.Contains(o.Op)).Select(OperationFactory.Create).ToList();
+        var peiSpecs = profile.Operations.Where(o => PeiOps.Contains(o.Op)).ToList();
+        var peiOps = peiSpecs.Select(OperationFactory.Create).ToList();
         report.Section("Boot (PEI) volume");
-        foreach (var op in peiOps) { op.Check(ctx); report.Add(op.Apply(ctx)); }
+        for (int i = 0; i < peiOps.Count; i++) { peiOps[i].Check(ctx); report.Add(peiOps[i].Apply(ctx)); Tick($"Porting {peiSpecs[i].Op}"); }
         foreach (var op in peiOps)
             if (!op.Verify(ctx, out var msg))
                 throw new RomEditException($"post-check failed: {msg}");
@@ -78,15 +89,16 @@ public static class BuildPipeline
         }
 
         RepackBootVolume(work, vol, header, pei, report);
+        Tick("Recompressing boot volume");
 
         // --- DXE phase: SMBIOS identity and/or EC fan driver, one recompression ---
-        if (profile.Operations.Any(o => o.Op is "smbios_identity" or "add_ec_init"))
-            ApplyDxe(work, vol, profile, dmiOverride, report);
+        if (dxeSpecs.Count > 0)
+            ApplyDxe(work, vol, profile, dmiOverride, report, Tick);
 
         return new BuildResult(work, report);
     }
 
-    static void RunApcbChecks(BoardProfile profile, byte[] donor, byte[] oem, BuildReport report)
+    static void RunApcbChecks(BoardProfile profile, byte[] donor, byte[] oem, BuildReport report, Action<string> tick)
     {
         var ops = profile.Operations.Where(o => o.Op == "apcb_check").ToList();
         if (ops.Count == 0) return;
@@ -99,6 +111,7 @@ public static class BuildPipeline
             var op = OperationFactory.Create(spec);
             op.Check(ctx);
             report.Add(op.Apply(ctx));
+            tick("Checking memory map");
         }
     }
 
@@ -131,9 +144,10 @@ public static class BuildPipeline
         report.Add($"boot volume recompressed: 0x{oldFileSize:X} -> 0x{newFileSize:X} bytes");
     }
 
-    static void ApplyDxe(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report)
+    static void ApplyDxe(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report, Action<string> tick)
     {
-        var dmi = dmiOverride is null ? DmiIdentity.HpDefault : DmiIdentity.HpDefault.Merge(dmiOverride);
+        var baseId = IdentityResolver.BaseFor(profile);
+        var dmi = dmiOverride is null ? baseId : baseId.Merge(dmiOverride);
         var dxeFv = new FirmwareVolume(work, vol.DxeFvOffset);
         var dxeFile = dxeFv.FindByGuid(Guid.Parse(vol.DxeFileGuid ?? throw new RomFormatException("adapter is missing dxe_file_guid")));
         var lzmaSection = dxeFile.Sections().FirstOrDefault(s => s.Type == SectionType.GuidDefined)
@@ -144,9 +158,10 @@ public static class BuildPipeline
             ?? throw new RomFormatException("decompressed DXE blob has no firmware-volume-image section");
 
         report.Section("DXE volume");
-        report.Add(ApplyDxeOperations(dec, fvImage.DataOffset, profile, dmi));
+        report.Add(ApplyDxeOperations(dec, fvImage.DataOffset, profile, dmi, tick));
         GuidedSection.ReplaceLzmaGuided(work, dxeFile, lzmaSection, dec);
         report.Add("DXE volume recompressed");
+        tick("Recompressing DXE volume");
     }
 
     /// <summary>
@@ -154,7 +169,7 @@ public static class BuildPipeline
     /// in profile order, and return their report lines. The SMBIOS static-data location is resolved only
     /// when a smbios_identity operation is present, so add_ec_init can run on a board with no AMI SMBIOS file.
     /// </summary>
-    public static IReadOnlyList<string> ApplyDxeOperations(byte[] dec, int innerFvOffset, BoardProfile profile, DmiIdentity dmi)
+    public static IReadOnlyList<string> ApplyDxeOperations(byte[] dec, int innerFvOffset, BoardProfile profile, DmiIdentity dmi, Action<string>? tick = null)
     {
         var innerFv = new FirmwareVolume(dec, innerFvOffset);
         int start = 0, end = 0;
@@ -181,6 +196,7 @@ public static class BuildPipeline
             lines.AddRange(op.Apply(ctx));
             if (spec.Op == "smbios_identity")
                 new FfsFile(dec, smbiosFile!.Offset).FixChecksums(dec);   // editing the static data disturbs the file checksum
+            tick?.Invoke($"Writing {spec.Op}");
         }
         return lines;
     }

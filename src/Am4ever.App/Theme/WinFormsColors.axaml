@@ -12,6 +12,7 @@
       <SolidColorBrush x:Key="am4.Highlight" Color="#0078D7" />
       <SolidColorBrush x:Key="am4.HighlightText" Color="#FFFFFF" />
       <SolidColorBrush x:Key="am4.GrayText" Color="#6D6D6D" />
+      <SolidColorBrush x:Key="am4.ProgressFill" Color="#000080" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="am4.Control" Color="#2D2D30" />
@@ -23,6 +24,7 @@
       <SolidColorBrush x:Key="am4.Highlight" Color="#0A64AD" />
       <SolidColorBrush x:Key="am4.HighlightText" Color="#FFFFFF" />
       <SolidColorBrush x:Key="am4.GrayText" Color="#9A9A9A" />
+      <SolidColorBrush x:Key="am4.ProgressFill" Color="#4A6CD4" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
   <FontFamily x:Key="am4.Font">Segoe UI, Ubuntu, DejaVu Sans, sans-serif</FontFamily>

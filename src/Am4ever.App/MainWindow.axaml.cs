@@ -25,8 +25,10 @@ public partial class MainWindow : Window
         _themes.EffectiveChanged += (_, _) => SyncThemeMenu();
         SyncThemeMenu();
 
-        var wizard = new Wizard.WizardView(new Wizard.WizardFlow());
-        var lab = new Lab.BoardLabView();
+        var toasts = new Feedback.ToastService();
+        Toasts.Service = toasts;
+        var wizard = new Wizard.WizardView(new Wizard.WizardFlow(), toasts);
+        var lab = new Lab.BoardLabView(toasts);
         WizardHost.Content = wizard;
         ModeWizardItem.Click += (_, _) => WizardHost.Content = wizard;
         ModeBoardLabItem.Click += (_, _) => WizardHost.Content = lab;
