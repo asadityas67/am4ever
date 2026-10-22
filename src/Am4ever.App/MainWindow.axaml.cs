@@ -28,7 +28,7 @@ public partial class MainWindow : Window
         var toasts = new Feedback.ToastService();
         Toasts.Service = toasts;
         var wizard = new Wizard.WizardView(new Wizard.WizardFlow(), toasts);
-        var lab = new Lab.BoardLabView();
+        var lab = new Lab.BoardLabView(toasts);
         WizardHost.Content = wizard;
         ModeWizardItem.Click += (_, _) => WizardHost.Content = wizard;
         ModeBoardLabItem.Click += (_, _) => WizardHost.Content = lab;
