@@ -42,6 +42,16 @@ public sealed record DmiIdentity
         ChassisManufacturer = "HP",
     };
 
+    /// <summary>A generic board identity derived from a profile's board metadata (the non-HP case).</summary>
+    public static DmiIdentity FromBoard(string vendor, string model, string boardId) => new()
+    {
+        SystemManufacturer = vendor,
+        SystemProduct = model,
+        BoardManufacturer = vendor,
+        BoardProduct = boardId,
+        ChassisManufacturer = vendor,
+    };
+
     /// <summary>This identity with any non-empty field of <paramref name="overrides"/> taking precedence.</summary>
     public DmiIdentity Merge(DmiIdentity overrides) => new()
     {

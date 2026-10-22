@@ -146,7 +146,8 @@ public static class BuildPipeline
 
     static void ApplyDxe(byte[] work, VolumeMap vol, BoardProfile profile, DmiIdentity? dmiOverride, BuildReport report, Action<string> tick)
     {
-        var dmi = dmiOverride is null ? DmiIdentity.HpDefault : DmiIdentity.HpDefault.Merge(dmiOverride);
+        var baseId = IdentityResolver.BaseFor(profile);
+        var dmi = dmiOverride is null ? baseId : baseId.Merge(dmiOverride);
         var dxeFv = new FirmwareVolume(work, vol.DxeFvOffset);
         var dxeFile = dxeFv.FindByGuid(Guid.Parse(vol.DxeFileGuid ?? throw new RomFormatException("adapter is missing dxe_file_guid")));
         var lzmaSection = dxeFile.Sections().FirstOrDefault(s => s.Type == SectionType.GuidDefined)
