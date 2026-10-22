@@ -52,7 +52,7 @@ public static class ProfileDiscovery
                 });
         }
 
-        ops.Add(new OperationSpec("smbios_identity") { Notes = "needs a Core identity extractor for this board" });
+        ops.Add(new OperationSpec("smbios_identity") { Notes = "identity from the board metadata (or --dmi)" });
         ops.Add(new OperationSpec("add_ec_init"));
         return ops;
     }

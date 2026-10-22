@@ -16,9 +16,6 @@ public sealed record ComposerTestResult(bool Ok, string? Error, string? Report);
 /// </summary>
 public sealed class ComposerCore
 {
-    // Core identity extractors that exist today; smbios_identity is only meaningful for these boards.
-    static readonly HashSet<string> KnownExtractors = new(StringComparer.Ordinal) { "hp-8434" };
-
     byte[]? _oem;
     byte[]? _donor;
     DonorAdapter? _adapter;
@@ -92,8 +89,9 @@ public sealed class ComposerCore
         }
     }
 
-    /// <summary>Whether a Core identity extractor exists for this board, so <c>smbios_identity</c> is meaningful.</summary>
-    public bool IdentitySupported => Draft.IdentityExtractor is { } e && KnownExtractors.Contains(e);
+    /// <summary>Always true: identity now resolves generically from the profile's board metadata (or --dmi),
+    /// so <c>smbios_identity</c> works for any board. A named extractor only pins exact strings for boards that ship one.</summary>
+    public bool IdentitySupported => true;
 
     // --- table-edit gate: a warning must be acknowledged on every enable ---
     public Func<bool>? ConfirmTableEdit { get; set; }

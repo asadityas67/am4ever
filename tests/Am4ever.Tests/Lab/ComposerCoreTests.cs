@@ -10,6 +10,11 @@ namespace Am4ever.Tests.Lab;
 
 public class ComposerCoreTests
 {
+    [Fact] public void IdentitySupported_IsAlwaysTrue_ForAFreshBoard()
+    {
+        Assert.True(new ComposerCore().IdentitySupported);
+    }
+
     [Fact] public void AddThenRemove_LeavesExpectedOps()
     {
         var c = new ComposerCore();
